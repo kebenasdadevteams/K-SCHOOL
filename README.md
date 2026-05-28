@@ -121,6 +121,30 @@ project-root/
 
 # 👥 TEAM DASHBOARD RESPONSIBILITIES
 
+## Abenezer + Elshaday
+
+### Assigned Dashboards
+
+* Signup / Signin System
+* Role Selector
+* Student Dashboard
+
+### Frontend Responsibilities
+
+* Login & signup forms UI
+* Role selector UI
+* Student dashboard UI
+* Course modules interface
+* Assignments interface
+
+### Backend Responsibilities
+
+* JWT authentication
+* Role-based routing & middleware
+* Student data APIs
+* Assignment submit/fetch APIs
+
+
 ## Henok + Saba + Lemi
 
 ### Assigned Dashboards
@@ -145,7 +169,7 @@ project-root/
 
 ---
 
-## Henok + Abenezer
+## Henok + Abenezer + Lemi
 
 ### Assigned Dashboards
 
@@ -170,7 +194,7 @@ project-root/
 
 ---
 
-## Ashey
+## Ashemafi
 
 ### Assigned Dashboard
 
