@@ -1,0 +1,11 @@
+const express = require('express');
+const { getMembers, createMember, deleteMember } = require('../controllers/pastor-controller');
+const { authenticate } = require('../middleware/auth-middleware');
+const { requireRole } = require('../middleware/role-middleware');
+const router = express.Router();
+router.use(authenticate);
+router.use(requireRole('pastor', 'admin'));
+router.get('/members', getMembers);
+router.post('/members', createMember);
+router.delete('/members/:id', deleteMember);
+module.exports = router;
