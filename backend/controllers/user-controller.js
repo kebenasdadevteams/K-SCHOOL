@@ -1,4 +1,60 @@
+const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
+
+// POST /api/v1/users  (admin only)
+const createUser = async (req, res) => {
+  const { full_name, email, password, roles } = req.body;
+
+  if (!full_name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+  }
+
+  const roleNames = Array.isArray(roles) && roles.length > 0 ? roles : ['student'];
+
+  try {
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const [result] = await pool.query(
+      'INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)',
+      [full_name, email, password_hash]
+    );
+
+    const userId = result.insertId;
+    for (const roleName of roleNames) {
+      const [roleRows] = await pool.query('SELECT id FROM roles WHERE name = ?', [roleName]);
+      if (roleRows.length > 0) {
+        await pool.query('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, roleRows[0].id]);
+      }
+    }
+
+    const [roleRows] = await pool.query(
+      `SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = ?`,
+      [userId]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: {
+        id: userId,
+        full_name,
+        email,
+        roles: roleRows.map((r) => r.name),
+      },
+    });
+  } catch (err) {
+    console.error('createUser error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
 
 // GET /api/v1/users  (admin only)
 const getAllUsers = async (req, res) => {
@@ -99,4 +155,4 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUserRoles, deleteUser };
+module.exports = { createUser, getAllUsers, getUserById, updateUserRoles, deleteUser };

@@ -26,18 +26,16 @@ const AppRoutes = () => {
     <Routes>
       {/* Public */}
       <Route path="/" element={<GuestPage />} />
-      <Route path="/login" element={user ? <Navigate to="/role-selection" /> : <LoginPage />} />
-      <Route path="/signup" element={user ? <Navigate to="/role-selection" /> : <SignupPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Role selection */}
-      <Route path="/role-selection" element={
-        <ProtectedRoute>
-          <RoleSelectionPage />
-        </ProtectedRoute>
-      } />
+      {/* role-selection removed; redirect to home if accessed */}
+      <Route path="/role-selection" element={<Navigate to="/" replace />} />
 
       {/* Dashboards */}
+      <Route path="/dashboard" element={<Navigate to="/student" replace />} />
       <Route path="/student/*" element={
         <ProtectedRoute requiredRole="student">
           <StudentDashboard />

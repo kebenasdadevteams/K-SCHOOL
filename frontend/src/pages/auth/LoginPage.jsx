@@ -13,51 +13,84 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const user = await login(form);
-      if (user.roles.length === 1) navigate(`/${user.roles[0]}`);
-      else navigate('/role-selection');
+      const user = await login({
+        ...form,
+        email: form.email.trim().toLowerCase(),
+      });
+      const roles = Array.isArray(user.roles)
+        ? user.roles.map((role) => String(role).trim().toLowerCase()).filter(Boolean)
+        : [];
+      const preferredRoleOrder = ['admin', 'developer', 'editor', 'pastor', 'teacher', 'student'];
+
+      if (roles.length === 0) {
+        navigate('/student');
+        return;
+      }
+
+      const highestRole = preferredRoleOrder.find((role) => roles.includes(role));
+      const destinationRole = highestRole || roles[0] || 'student';
+      navigate(`/${destinationRole}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid email or password');
+      const backendMessage = err.response?.data?.message;
+      const message = backendMessage || err.message || 'Invalid email or password';
+      setError(message);
+      console.error('Login error:', err.response?.data || err.message, 'request URL:', err.config?.url);
     } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#F6EBD8] text-[#4B2F18] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <img src={logo} alt="Logo" className="h-16 w-16 object-contain mx-auto mb-4"
             onError={e => e.target.style.display = 'none'} />
-          <h1 className="font-display text-3xl font-bold text-white mb-1">Welcome Back</h1>
-          <p className="text-gray-400 text-sm">Sign in to K-School</p>
+          <h1 className="font-display text-3xl font-bold text-[#865014] mb-1">Sign In</h1>
+          <p className="text-[#7F6243] text-sm">Access your K-School account</p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
+        <div className="bg-white/90 border border-[#E0AE3F]/30 rounded-[32px] p-8 shadow-[0_24px_90px_rgba(134,80,20,0.08)]">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 mb-6 text-sm">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-600 rounded-xl px-4 py-3 mb-6 text-sm">
               {error}
             </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="label">Email Address</label>
-              <input type="email" className="input-field" placeholder="your@email.com"
-                value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+              <label className="block text-sm font-semibold text-[#865014] mb-2">Email Address</label>
+              <input
+                type="email"
+                className="w-full rounded-3xl border border-[#E0AE3F]/30 bg-[#FEF6E8] px-4 py-3 text-[#4B2F18] outline-none transition focus:border-[#865014] focus:ring-2 focus:ring-[#E0AE3F]/25"
+                placeholder="your@email.com"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                required
+              />
             </div>
             <div>
-              <label className="label">Password</label>
-              <input type="password" className="input-field" placeholder="••••••••"
-                value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+              <label className="block text-sm font-semibold text-[#865014] mb-2">Password</label>
+              <input
+                type="password"
+                className="w-full rounded-3xl border border-[#E0AE3F]/30 bg-[#FEF6E8] px-4 py-3 text-[#4B2F18] outline-none transition focus:border-[#865014] focus:ring-2 focus:ring-[#E0AE3F]/25"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                required
+              />
             </div>
             <div className="text-right">
-              <Link to="/forgot-password" className="text-amber-400 text-sm hover:underline">Forgot password?</Link>
+              <Link to="/forgot-password" className="text-[#865014] text-sm font-medium hover:underline">Forgot password?</Link>
             </div>
-            <button type="submit" disabled={loading} className="w-full btn-gold py-3 text-base">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-full bg-[#865014] text-white py-3 text-base font-semibold transition hover:bg-[#6d410f] disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-          <p className="text-center text-gray-500 mt-6 text-sm">
-            No account?{' '}
-            <Link to="/signup" className="text-amber-400 hover:underline font-medium">Create one</Link>
+          <p className="text-center text-[#7F6243] mt-6 text-sm">
+            Don&apos;t have an account?{' '}
+            <Link to="/signup" className="text-[#E0AE3F] hover:underline font-semibold">Create account</Link>
           </p>
         </div>
       </div>

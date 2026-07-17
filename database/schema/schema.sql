@@ -1,8 +1,8 @@
 -- K-School Database Schema
 -- Run this file to initialize the database
 
-CREATE DATABASE IF NOT EXISTS railway CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE railway;
+CREATE DATABASE IF NOT EXISTS kschool_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE kschool_db;
 
 -- ── USERS ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(20),
+  profile_picture VARCHAR(500),
+  theme VARCHAR(20) DEFAULT 'light',
+  language VARCHAR(10) DEFAULT 'en',
+  font_size VARCHAR(20) DEFAULT 'medium',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -37,6 +42,51 @@ CREATE TABLE IF NOT EXISTS user_roles (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
+
+-- Demo Admin Account
+INSERT IGNORE INTO users (full_name, email, password_hash) VALUES
+  ('Admin User', 'admin@kebenasdachurch.org', '$2a$12$duZbf2RAlHrEfSt2GPK6ZOlhQIkqVxB7mIqjmVWE7IVslbws5PGpq'),
+  ('Pastor User', 'pastor@kebenasdachurch.org', '$2a$12$LEQq.uBjtBjubHbKM5PgCOvNg5ee9Q5IHUHAeTuOBMSK1W3EqwaLm'),
+  ('Editor User', 'editor@kebenasdachurch.org', '$2a$12$EOQ6GSEFZVTc3GAlvja4SOnODFyhzoc6itJwZkX5oAvHCZsOpEAve'),
+  ('Teacher User', 'teacher@kebenasdachurch.org', '$2a$12$FL6ohOknsajFwS0AevCnAOult5yE8U7ZUQvNadx/pK3TRDodB2KyG'),
+  ('Developer User', 'developer@kebenasdachurch.org', '$2a$12$JQT7jCVQDv1ayX/wUuZaxOtHjYJK2Yvet0D0LGOiQTf8HZKOmMetW'),
+  ('Student User', 'student@kebenasdachurch.org', '$2a$12$.ftABpIhk3cCMoGynP8QCuNHqNpHLldq3t4vhdYuJ8SyFrIqK91Ja');
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name IN ('admin', 'student')
+  WHERE u.email = 'Admin@kebenasdachurch.org';
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name IN ('pastor', 'student')
+  WHERE u.email = 'Pastor@kebenasdachurch.org';
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name IN ('editor', 'student')
+  WHERE u.email = 'Editor@kebenasdachurch.org';
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name IN ('teacher', 'student')
+  WHERE u.email = 'Teacher@kebenasdachurch.org';
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name IN ('developer', 'student')
+  WHERE u.email = 'Developer@kebenasdachurch.org';
+
+INSERT IGNORE INTO user_roles (user_id, role_id)
+  SELECT u.id, r.id
+  FROM users u
+  JOIN roles r ON r.name = 'student'
+  WHERE u.email = 'Student@kebenasdachurch.org';
 
 -- ── COURSES ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS courses (
@@ -86,6 +136,42 @@ CREATE TABLE IF NOT EXISTS submissions (
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
   FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- ── ENROLLMENTS ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS enrollments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  course_id INT NOT NULL,
+  enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('active','completed','cancelled') DEFAULT 'active',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_enrollment (user_id, course_id)
+);
+
+-- ── MESSAGES ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sender_id INT NOT NULL,
+  receiver_id INT NOT NULL,
+  content TEXT NOT NULL,
+  attachment_url VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- ── NOTIFICATIONS ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT,
+  type VARCHAR(50) DEFAULT 'info',
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- ── POSTS ──────────────────────────────────────────────
@@ -138,16 +224,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- ── NOTIFICATIONS ──────────────────────────────────────
-CREATE TABLE IF NOT EXISTS notifications (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  title VARCHAR(200) NOT NULL,
-  message TEXT,
-  is_read BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
 
 -- ── PASSWORD RESET TOKENS ──────────────────────────────
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

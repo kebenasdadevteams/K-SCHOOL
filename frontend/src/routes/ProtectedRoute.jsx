@@ -7,8 +7,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="text-gold-400 text-xl font-display animate-pulse">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="text-primary text-xl font-display animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -17,8 +17,18 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && !user.roles.includes(requiredRole)) {
-    return <Navigate to="/role-selection" replace />;
+  if (requiredRole) {
+    const normalizedRole = String(requiredRole).trim().toLowerCase();
+    const userRoles = Array.isArray(user.roles)
+      ? user.roles.map((role) => String(role).trim().toLowerCase())
+      : [];
+
+    const canAccess = userRoles.includes(normalizedRole)
+      || (normalizedRole === 'student' && ['teacher', 'pastor', 'editor', 'admin', 'developer'].some((role) => userRoles.includes(role)));
+
+    if (!canAccess) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children;

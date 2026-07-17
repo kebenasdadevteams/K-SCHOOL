@@ -3,31 +3,55 @@ import { authService } from '../services/auth-service';
 
 const AuthContext = createContext(null);
 
+const normalizeRoles = (roles) => {
+  if (!Array.isArray(roles)) return [];
+  return roles.map((role) => String(role).trim().toLowerCase()).filter(Boolean);
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authenticating, setAuthenticating] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('kschool_user');
     const token = localStorage.getItem('kschool_token');
 
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser({
+        ...parsedUser,
+        roles: normalizeRoles(parsedUser.roles),
+      });
     }
     setLoading(false);
   }, []);
 
   const login = async (credentials) => {
-    const res = await authService.login(credentials);
-    const { token, user } = res.data.data;
-    localStorage.setItem('kschool_token', token);
-    localStorage.setItem('kschool_user', JSON.stringify(user));
-    setUser(user);
-    return user;
+    setAuthenticating(true);
+    try {
+      const res = await authService.login(credentials);
+      const { token, user } = res.data.data;
+      const normalizedUser = {
+        ...user,
+        roles: normalizeRoles(user.roles),
+      };
+      localStorage.setItem('kschool_token', token);
+      localStorage.setItem('kschool_user', JSON.stringify(normalizedUser));
+      setUser(normalizedUser);
+      return normalizedUser;
+    } finally {
+      setAuthenticating(false);
+    }
   };
 
   const signup = async (data) => {
-    return authService.signup(data);
+    setAuthenticating(true);
+    try {
+      return await authService.signup(data);
+    } finally {
+      setAuthenticating(false);
+    }
   };
 
   const logout = () => {
@@ -37,11 +61,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const hasRole = (role) => {
-    return user?.roles?.includes(role) || false;
+    if (!user?.roles) return false;
+    return user.roles.includes(String(role).trim().toLowerCase());
   };
 
+  const isLoading = loading || authenticating;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, loading: isLoading, login, signup, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

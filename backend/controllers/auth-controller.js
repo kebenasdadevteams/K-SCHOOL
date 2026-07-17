@@ -13,10 +13,11 @@ const signup = async (req, res) => {
   }
 
   const { full_name, email, password } = req.body;
+  const normalizedEmail = email.trim().toLowerCase();
 
   try {
     // Check if email exists
-    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ?', [normalizedEmail]);
     if (existing.length > 0) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
@@ -27,7 +28,7 @@ const signup = async (req, res) => {
     // Insert user
     const [result] = await pool.query(
       'INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)',
-      [full_name, email, password_hash]
+      [full_name, normalizedEmail, password_hash]
     );
 
     const userId = result.insertId;
@@ -56,10 +57,11 @@ const login = async (req, res) => {
   }
 
   const { email, password } = req.body;
+  const normalizedEmail = email.trim().toLowerCase();
 
   try {
     // Find user
-    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [users] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [normalizedEmail]);
     if (users.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -99,8 +101,8 @@ const login = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during login' });
+    console.error('Login error:', err.message, err.stack);
+    return res.status(500).json({ success: false, message: 'Server error during login', error: err.message });
   }
 };
 
@@ -204,4 +206,169 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getMe, forgotPassword, resetPassword };
+// PUT /api/v1/auth/profile - Update user profile (name, email, phone, profile_picture)
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { full_name, email, phone_number, profile_picture } = req.body;
+
+    // Check if new email is already taken by another user
+    if (email) {
+      const [existing] = await pool.query(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, userId]
+      );
+      if (existing.length > 0) {
+        return res.status(400).json({ success: false, message: 'Email already in use' });
+      }
+    }
+
+    // Update user profile
+    const updateFields = [];
+    const updateValues = [];
+
+    if (full_name) {
+      updateFields.push('full_name = ?');
+      updateValues.push(full_name);
+    }
+    if (email) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+    if (phone_number) {
+      updateFields.push('phone_number = ?');
+      updateValues.push(phone_number);
+    }
+    if (profile_picture) {
+      updateFields.push('profile_picture = ?');
+      updateValues.push(profile_picture);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    updateValues.push(userId);
+    await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+
+    // Fetch updated user
+    const [users] = await pool.query('SELECT id, full_name, email, phone_number, profile_picture FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: users[0],
+    });
+  } catch (err) {
+    console.error('updateProfile error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// PUT /api/v1/auth/change-password - Change user password
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { current_password, new_password, confirm_password } = req.body;
+
+    if (!current_password || !new_password || !confirm_password) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
+    }
+
+    if (new_password !== confirm_password) {
+      return res.status(400).json({ success: false, message: 'Passwords do not match' });
+    }
+
+    // Fetch user and verify current password
+    const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(current_password, users[0].password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const new_password_hash = await bcrypt.hash(new_password, 12);
+
+    // Update password
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [new_password_hash, userId]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
+    });
+  } catch (err) {
+    console.error('changePassword error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// PUT /api/v1/auth/preferences - Update user preferences (theme, language, font_size)
+const updatePreferences = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { theme, language, font_size } = req.body;
+
+    const updateFields = [];
+    const updateValues = [];
+
+    if (theme && ['light', 'dark'].includes(theme)) {
+      updateFields.push('theme = ?');
+      updateValues.push(theme);
+    }
+    if (language) {
+      updateFields.push('language = ?');
+      updateValues.push(language);
+    }
+    if (font_size && ['small', 'medium', 'large'].includes(font_size)) {
+      updateFields.push('font_size = ?');
+      updateValues.push(font_size);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    updateValues.push(userId);
+    await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+
+    // Fetch updated preferences
+    const [users] = await pool.query('SELECT theme, language, font_size FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: users[0],
+    });
+  } catch (err) {
+    console.error('updatePreferences error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, updatePreferences };
