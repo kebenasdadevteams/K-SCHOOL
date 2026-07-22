@@ -1,0 +1,1297 @@
+.daily-quote {
+  background-color: #F6EBD8;
+  padding: 4rem 1rem;
+}
+
+.quote-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0;
+}
+
+/* Quote Image - UPDATED */
+.quote-image-wrapper {
+  position: relative;
+  height: 100%;
+  min-height: 400px;
+  overflow: hidden;
+}
+
+.quote-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Changed from cover to contain */
+  background-color: #f8f9fa; /* Fallback background */
+  padding: 1rem; /* Added padding to prevent edge cropping */
+}
+
+.quote-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(134, 80, 20, 0.3) 0%, rgba(134, 80, 20, 0.1) 100%);
+  pointer-events: none;
+}
+
+/* Quote Content */
+.quote-content {
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.quote-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.quote-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.quote-icon {
+  width: 32px;
+  height: 32px;
+  color: #865014;
+  opacity: 0.6;
+}
+
+.quote-heading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #865014;
+  margin: 0;
+}
+
+.quote-category {
+  background-color: #865014;
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+.quote-text {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: #333;
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+  text-align: left;
+}
+
+.quote-reference {
+  display: block;
+  font-size: 1rem;
+  font-style: normal;
+  color: #865014;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.quote-read-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  background: #865014;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin: 1rem 0;
+  align-self: flex-start;
+}
+
+.quote-read-more-btn:hover {
+  background: #6a3f10;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(134, 80, 20, 0.3);
+}
+
+.quote-read-more-btn .arrow {
+  font-size: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.quote-read-more-btn:hover .arrow {
+  transform: translateX(4px);
+}
+
+/* Quote Actions */
+.quote-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #F6EBD8;
+  flex-wrap: wrap;
+}
+
+.quote-navigation {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.quote-nav-btn {
+  background-color: #F6EBD8;
+  border: 2px solid #865014;
+  color: #865014;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.quote-nav-btn:hover:not(:disabled) {
+  background-color: #865014;
+  color: white;
+}
+
+.quote-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.quote-nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.quote-today-btn {
+  background-color: #865014;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.quote-today-btn:hover {
+  background-color: #6a3f10;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(134, 80, 20, 0.3);
+}
+
+.quote-action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.quote-history-btn,
+.quote-share-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: white;
+  border: 2px solid #865014;
+  color: #865014;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.quote-history-btn:hover,
+.quote-share-btn:hover {
+  background-color: #865014;
+  color: white;
+}
+
+.quote-history-btn svg,
+.quote-share-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Quote History */
+.quote-history {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #F6EBD8;
+}
+
+.history-title {
+  font-size: 1.125rem;
+  font-weight: bold;
+  color: #865014;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #F6EBD8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.history-item:hover {
+  background-color: #eddfc8;
+  border-color: #865014;
+}
+
+.history-item.active {
+  background-color: #865014;
+  color: white;
+}
+
+.history-date {
+  font-weight: bold;
+  min-width: 60px;
+  font-size: 0.875rem;
+}
+
+.history-preview {
+  flex: 1;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.history-item.active .history-date,
+.history-item.active .history-preview {
+  color: white;
+}
+
+/* Scrollbar Styling */
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: #F6EBD8;
+  border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: #865014;
+  border-radius: 3px;
+}
+
+/* =========================================== */
+/* MODAL POPUP STYLES */
+/* =========================================== */
+
+.quote-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.quote-modal {
+  background: white;
+  border-radius: 20px;
+  max-width: 1000px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: slideUp 0.4s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #865014;
+  color: #865014;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s;
+}
+
+.modal-close-btn:hover {
+  background: #865014;
+  color: white;
+  transform: rotate(90deg);
+}
+
+.modal-close-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.modal-content {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0;
+  height: 100%;
+}
+
+.modal-image-section {
+  position: relative;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.modal-image {
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.modal-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(134, 80, 20, 0.2) 0%, rgba(134, 80, 20, 0.05) 100%);
+}
+
+.modal-category {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background-color: #865014;
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.modal-text-section {
+  padding: 3rem;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.modal-quote-icon {
+  width: 32px;
+  height: 32px;
+  color: #865014;
+  opacity: 0.6;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #865014;
+  margin: 0;
+}
+
+.modal-quote-text {
+  font-size: 1.5rem;
+  font-style: italic;
+  color: #333;
+  margin-bottom: 2rem;
+  line-height: 1.8;
+  text-align: left;
+}
+
+.modal-reference {
+  display: block;
+  font-size: 1.125rem;
+  font-style: normal;
+  color: #865014;
+  font-weight: 600;
+  margin-bottom: 2.5rem;
+  text-align: left;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #F6EBD8;
+}
+
+.modal-share-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: white;
+  border: 2px solid #865014;
+  color: #865014;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  flex: 1;
+  justify-content: center;
+}
+
+.modal-share-btn:hover {
+  background-color: #865014;
+  color: white;
+}
+
+.modal-close-text-btn {
+  background-color: #F6EBD8;
+  border: 2px solid #865014;
+  color: #865014;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  flex: 1;
+}
+
+.modal-close-text-btn:hover {
+  background-color: #865014;
+  color: white;
+}
+
+/* =========================================== */
+/* SHARE MODAL STYLES - ADDED SECTION */
+/* =========================================== */
+
+.share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.share-modal {
+  background: white;
+  border-radius: 20px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: slideUp 0.4s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.share-modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #865014;
+  color: #865014;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s;
+}
+
+.share-modal-close-btn:hover {
+  background: #865014;
+  color: white;
+  transform: rotate(90deg);
+}
+
+.share-modal-close-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.share-modal-content {
+  padding: 2rem;
+  text-align: center;
+}
+
+.share-modal-header {
+  margin-bottom: 2rem;
+}
+
+.share-modal-icon {
+  width: 48px;
+  height: 48px;
+  color: #865014;
+  margin-bottom: 1rem;
+}
+
+.share-modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #865014;
+  margin: 0 0 0.5rem 0;
+}
+
+.share-modal-subtitle {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.share-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.share-option {
+  background: #F6EBD8;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 1.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.share-option:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(134, 80, 20, 0.15);
+  border-color: #865014;
+}
+
+.share-option.native-share:hover {
+  background: linear-gradient(135deg, #F6EBD8 0%, #865014 100%);
+}
+
+.share-platform-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-platform-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Platform-specific colors */
+.share-platform-icon.facebook {
+  background-color: #1877F2;
+  color: white;
+}
+
+.share-option[data-platform="facebook"]:hover {
+  background: #1877F2;
+  color: white;
+}
+
+.share-option[data-platform="facebook"]:hover .share-platform-name {
+  color: white;
+}
+
+.share-platform-icon.whatsapp {
+  background-color: #25D366;
+  color: white;
+}
+
+.share-option[data-platform="whatsapp"]:hover {
+  background: #25D366;
+  color: white;
+}
+
+.share-option[data-platform="whatsapp"]:hover .share-platform-name {
+  color: white;
+}
+
+.share-platform-icon.telegram {
+  background-color: #0088CC;
+  color: white;
+}
+
+.share-option[data-platform="telegram"]:hover {
+  background: #0088CC;
+  color: white;
+}
+
+.share-option[data-platform="telegram"]:hover .share-platform-name {
+  color: white;
+}
+
+.share-platform-icon.twitter {
+  background-color: #1DA1F2;
+  color: white;
+}
+
+.share-option[data-platform="twitter"]:hover {
+  background: #1DA1F2;
+  color: white;
+}
+
+.share-option[data-platform="twitter"]:hover .share-platform-name {
+  color: white;
+}
+
+.share-platform-icon.copy {
+  background-color: #865014;
+  color: white;
+}
+
+.share-option[data-platform="copy"]:hover {
+  background: #6a3f10;
+  color: white;
+}
+
+.share-option[data-platform="copy"]:hover .share-platform-name {
+  color: white;
+}
+
+.share-platform-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #865014;
+  transition: color 0.3s;
+}
+
+.share-preview {
+  background: #F6EBD8;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 2px solid #865014;
+}
+
+.share-preview-content {
+  text-align: center;
+}
+
+.share-preview-text {
+  font-size: 1rem;
+  font-style: italic;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.share-preview-reference {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #865014;
+  margin: 0;
+}
+
+.share-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.share-modal-close-btn-secondary {
+  background: white;
+  border: 2px solid #865014;
+  color: #865014;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  min-width: 120px;
+}
+
+.share-modal-close-btn-secondary:hover {
+  background: #865014;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(134, 80, 20, 0.3);
+}
+
+/* =========================================== */
+/* RESPONSIVE DESIGN - TABLET & MOBILE BREAKPOINTS */
+/* =========================================== */
+
+/* Large Mobile (481px - 767px) */
+@media (min-width: 481px) and (max-width: 767px) {
+  .daily-quote {
+    padding: 2.5rem 1rem;
+  }
+  
+  .quote-container {
+    grid-template-columns: 1fr;
+    border-radius: 12px;
+  }
+  
+  .quote-image-wrapper {
+    min-height: 250px;
+  }
+  
+  .quote-image {
+    padding: 0.75rem;
+  }
+  
+  .quote-content {
+    padding: 1.75rem;
+  }
+  
+  .quote-heading {
+    font-size: 1.3rem;
+  }
+  
+  .quote-text {
+    font-size: 1.1rem;
+    line-height: 1.7;
+  }
+  
+  .quote-reference {
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .quote-read-more-btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.85rem;
+  }
+  
+  .quote-actions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .quote-navigation {
+    justify-content: center;
+  }
+  
+  .quote-action-buttons {
+    width: 100%;
+  }
+  
+  .quote-history-btn,
+  .quote-share-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 0.625rem;
+  }
+  
+  .quote-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .history-item {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  
+  .history-preview {
+    font-size: 0.8rem;
+  }
+
+  /* Share Modal Responsive */
+  .share-modal {
+    max-width: 90%;
+  }
+  
+  .share-options-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .share-option {
+    padding: 1rem 0.5rem;
+  }
+  
+  .share-platform-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .share-platform-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .share-platform-name {
+    font-size: 0.8rem;
+  }
+  
+  .share-modal-content {
+    padding: 1.5rem;
+  }
+  
+  .share-modal-title {
+    font-size: 1.3rem;
+  }
+  
+  .share-modal-subtitle {
+    font-size: 0.9rem;
+  }
+
+  /* Modal adjustments for tablet */
+  .modal-content {
+    grid-template-columns: 1fr 1.1fr;
+  }
+  
+  .modal-text-section {
+    padding: 2rem;
+  }
+  
+  .modal-quote-text {
+    font-size: 1.3rem;
+  }
+  
+  .modal-reference {
+    font-size: 1.05rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-share-btn,
+  .modal-close-text-btn {
+    width: 100%;
+  }
+}
+
+/* Tablet Portrait (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .daily-quote {
+    padding: 3rem 1.5rem;
+  }
+  
+  .quote-container {
+    grid-template-columns: 1fr 1.1fr;
+  }
+  
+  .quote-image-wrapper {
+    min-height: 350px;
+  }
+  
+  .quote-content {
+    padding: 2rem;
+  }
+  
+  .quote-heading {
+    font-size: 1.4rem;
+  }
+  
+  .quote-text {
+    font-size: 1.15rem;
+  }
+  
+  .quote-read-more-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .quote-actions {
+    gap: 0.75rem;
+  }
+  
+  .quote-action-buttons {
+    gap: 0.5rem;
+  }
+  
+  .quote-history-btn,
+  .quote-share-btn {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.85rem;
+  }
+
+  /* Share Modal adjustments for tablet */
+  .share-modal {
+    max-width: 500px;
+  }
+  
+  .share-options-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .share-modal-content {
+    padding: 2rem;
+  }
+
+  /* Modal adjustments for tablet */
+  .modal-content {
+    grid-template-columns: 1fr 1.1fr;
+  }
+  
+  .modal-text-section {
+    padding: 2rem;
+  }
+  
+  .modal-quote-text {
+    font-size: 1.3rem;
+  }
+  
+  .modal-reference {
+    font-size: 1.05rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-share-btn,
+  .modal-close-text-btn {
+    width: 100%;
+  }
+}
+
+/* Tablet Landscape (1024px - 1199px) */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .daily-quote {
+    padding: 3.5rem 2rem;
+  }
+  
+  .quote-container {
+    max-width: 1100px;
+  }
+  
+  .quote-image-wrapper {
+    min-height: 380px;
+  }
+  
+  .quote-content {
+    padding: 2.5rem;
+  }
+  
+  .quote-heading {
+    font-size: 1.45rem;
+  }
+  
+  .quote-text {
+    font-size: 1.2rem;
+  }
+
+  /* Share Modal adjustments */
+  .share-modal {
+    max-width: 500px;
+  }
+
+  /* Modal adjustments */
+  .modal-content {
+    grid-template-columns: 1fr 1.15fr;
+  }
+  
+  .modal-text-section {
+    padding: 2.5rem;
+  }
+  
+  .modal-quote-text {
+    font-size: 1.4rem;
+  }
+  
+  .modal-actions {
+    gap: 1rem;
+  }
+}
+
+/* Mobile (0px - 480px) */
+@media (max-width: 480px) {
+  .daily-quote {
+    padding: 2rem 1rem;
+  }
+  
+  .quote-container {
+    grid-template-columns: 1fr;
+    border-radius: 10px;
+  }
+  
+  .quote-image-wrapper {
+    min-height: 200px;
+  }
+  
+  .quote-content {
+    padding: 1.5rem;
+  }
+  
+  .quote-text {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  
+  .quote-reference {
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .quote-read-more-btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+  }
+  
+  .quote-actions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .quote-navigation {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .quote-action-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .quote-history-btn,
+  .quote-share-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+  }
+
+  /* Share Modal mobile adjustments */
+  .share-modal-overlay {
+    padding: 0.5rem;
+  }
+  
+  .share-modal {
+    max-width: 95%;
+    border-radius: 16px;
+  }
+  
+  .share-modal-content {
+    padding: 1.25rem;
+  }
+  
+  .share-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .share-option {
+    padding: 1rem 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .share-platform-icon {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .share-platform-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .share-platform-name {
+    font-size: 0.75rem;
+  }
+  
+  .share-modal-title {
+    font-size: 1.2rem;
+  }
+  
+  .share-modal-subtitle {
+    font-size: 0.85rem;
+  }
+  
+  .share-preview {
+    padding: 1rem;
+  }
+  
+  .share-preview-text {
+    font-size: 0.9rem;
+  }
+  
+  .share-modal-close-btn-secondary {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  /* Modal mobile adjustments */
+  .modal-content {
+    grid-template-columns: 1fr;
+    max-height: 95vh;
+  }
+  
+  .modal-image-section {
+    padding: 1rem;
+    min-height: 200px;
+  }
+  
+  .modal-text-section {
+    padding: 1.5rem;
+    max-height: 60vh;
+  }
+  
+  .modal-quote-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  
+  .modal-reference {
+    font-size: 0.95rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-share-btn,
+  .modal-close-text-btn {
+    width: 100%;
+  }
+}
+
+/* Landscape Mobile & Tablets */
+@media (max-height: 600px) and (orientation: landscape) {
+  .modal-content {
+    grid-template-columns: 1fr 1fr;
+    max-height: 95vh;
+  }
+  
+  .modal-text-section {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  .modal-quote-text {
+    font-size: 1.2rem;
+    line-height: 1.6;
+  }
+
+  /* Share Modal adjustments for landscape */
+  .share-modal {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  .share-modal-content {
+    padding: 1.5rem;
+  }
+  
+  .share-options-grid {
+    margin-bottom: 1.5rem;
+  }
+  
+  .share-preview {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 1200px) {
+  .quote-container {
+    max-width: 1200px;
+  }
+  
+  .quote-image-wrapper {
+    min-height: 450px;
+  }
+  
+  .quote-content {
+    padding: 3rem;
+  }
+  
+  .quote-text {
+    font-size: 1.3rem;
+  }
+}
+
+/* Small height devices for Share Modal */
+@media (max-height: 600px) {
+  .share-modal {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  .share-modal-content {
+    padding: 1.5rem;
+  }
+  
+  .share-options-grid {
+    margin-bottom: 1.5rem;
+  }
+  
+  .share-preview {
+    margin-bottom: 1.5rem;
+  }
+}
+

@@ -1,0 +1,51 @@
+.purpose-section{
+    width: 100%;
+    text-align: center;
+    padding: 4rem 1rem;
+}
+.purpose-header .section-title{
+    margin-bottom: 1rem;
+    font-size: 2rem;
+}
+.purpose-header p{
+    max-width: 900px;
+    margin: 0 auto 1rem;
+    color: #333;
+}
+.purposes-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+.purpose-card .icon{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #865014;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.purposes-grid .purpose-title{
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+.purposes-grid .purpose-desc{
+    color: #4d4d4d;
+}
+.purpose-card{
+    border: 1px solid #865014;
+    border-radius: 10px;
+    border-left: 5px solid #865014;
+    padding: 20px 5px;
+}
+
+@media (min-width: 2000px){
+    .purposes-grid{
+        width: 2000px;
+        place-self: center;
+    }
+}

@@ -3,7 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 // Public pages
-import GuestPage from '../pages/public/GuestPage';
+import HomePage from '../pages/HomePage';
+import AboutPage from '../pages/AboutPage';
+import ResourcesPage from '../pages/ResourcesPage';
 import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
@@ -25,7 +27,9 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<GuestPage />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/resources" element={<ResourcesPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />

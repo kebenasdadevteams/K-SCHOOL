@@ -1,0 +1,610 @@
+/* === About Sections - Combined Styles === */
+
+.about-sda, .about-kebena {
+  padding: clamp(3rem, 8vw, 6rem) 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.about-sda {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 50%, #f1f3f4 100%);
+}
+
+.about-kebena {
+  background-color: #F6EBD8;
+  width: 100%;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2rem);
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: clamp(3rem, 6vw, 4rem);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.section-header h2 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.section-subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* === SDA Section Specific Styles === */
+
+.sda-section {
+  width: 100%;
+}
+
+.sda-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* SDA Header */
+.sda-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.badge {
+  display: inline-block;
+  background: #F6EBD8;
+  color: #865014;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.sda-header h2 {
+  font-size: 36px;
+  color: #865014;
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: #666;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* === Grid Layouts === */
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: clamp(2rem, 4vw, 3rem);
+  align-items: start;
+}
+
+.about-main {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vw, 3rem);
+}
+
+.kebena-content {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+/* === Cards and Components === */
+
+.intro-card {
+  background: white;
+  padding: clamp(2rem, 4vw, 3rem);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.intro-card h3 {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  color: #d4af37;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.intro-card p {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.intro-card p:last-child {
+  margin-bottom: 0;
+}
+
+/* Beliefs Grid Styles */
+.beliefs-section h3 {
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.belief-grid, .beliefs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 50px;
+}
+
+.belief-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.belief-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 0;
+  background: linear-gradient(to bottom, #865014, #E0AE3F);
+  transition: height 0.3s;
+}
+
+.belief-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  border-color: #E0AE3F;
+}
+
+.belief-card:hover::before {
+  height: 100%;
+}
+
+.belief-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.belief-number {
+  width: 45px;
+  height: 45px;
+  background: linear-gradient(135deg, #865014, #E0AE3F);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(134, 80, 20, 0.2);
+}
+
+.belief-card h3, .belief-card h4 {
+  font-size: 1.2rem;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.belief-card p {
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* === Mission & Vision === */
+
+.mission-vision {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.mv-card {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #d4af37;
+}
+
+.mv-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.mv-card h4 {
+  font-size: 1.3rem;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.mv-card p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #555;
+  margin: 0;
+}
+
+/* === Ministries Preview === */
+
+.ministries-preview h3 {
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.ministry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.ministry-item {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.ministry-item:hover {
+  transform: translateY(-3px);
+}
+
+.ministry-icon {
+  font-size: 1.5rem;
+}
+
+/* === Sidebar Components === */
+
+.about-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  position: sticky;
+  top: 2rem;
+}
+
+.stats-card, .highlight-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.stats-card h4, .highlight-card h4 {
+  font-size: 1.2rem;
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #d4af37;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 0.5rem;
+}
+
+.highlight-card p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #555;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* === Stats Section === */
+
+.beliefs-stats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  padding: 40px;
+  background: linear-gradient(135deg, #F6EBD8 0%, #ffffff 100%);
+  border: 2px solid #E0AE3F;
+  border-radius: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.beliefs-stats .stat-item {
+  text-align: center;
+  border-bottom: none;
+  padding: 0;
+}
+
+.beliefs-stats .stat-number {
+  font-size: 42px;
+  font-weight: 700;
+  color: #865014;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.beliefs-stats .stat-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-divider {
+  width: 2px;
+  height: 50px;
+  background: linear-gradient(to bottom, transparent, #E0AE3F, transparent);
+}
+
+/* === Kebena Content Styles === */
+
+.section-title {
+  font-size: 2rem;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.kebena-image-wrapper {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.kebena-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kebena-info {
+  padding-top: 10px;
+}
+
+.kebena-desc {
+  color: #333;
+  margin-bottom: 3rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: .75em;
+  margin-bottom: 2rem;
+}
+
+.info-item svg {
+  color: #865014;
+}
+
+.info-item h4 {
+  margin-bottom: .25rem;
+  color: #333;
+}
+
+.info-item p {
+  color: #666;
+}
+
+/* === Buttons === */
+
+.cta-btn, .explore-btn, .read-more-btn {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #865014 0%, #a86518 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(134, 80, 20, 0.3);
+}
+
+.cta-btn:hover, .explore-btn:hover, .read-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(134, 80, 20, 0.4);
+}
+
+.explore-btn {
+  background-color: #865014;
+}
+
+.explore-btn:hover {
+  border: 1px solid #865014;
+  background: transparent;
+  color: #865014;
+}
+
+.read-more-btn .arrow {
+  font-size: 20px;
+  transition: transform 0.3s;
+}
+
+.read-more-btn:hover .arrow {
+  transform: translateX(5px);
+}
+
+/* === CTA Section === */
+
+.cta {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #f0f0f0;
+}
+
+.cta-text {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 25px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+.about-kebena .read-more-btn{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: auto;
+  margin-top: 25px;
+}
+
+/* === Responsive Design === */
+
+@media (max-width: 1024px) {
+  .about-grid {
+    grid-template-columns: 1fr 300px;
+    gap: 2rem;
+  }
+  
+  .belief-grid, .beliefs-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .about-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .about-sidebar {
+    position: static;
+    order: -1;
+  }
+  
+  .belief-grid, .beliefs-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mission-vision {
+    grid-template-columns: 1fr;
+  }
+  
+  .ministry-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  .intro-card, .mv-card, .stats-card, .highlight-card {
+    padding: 1.5rem;
+  }
+  
+  .kebena-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .sda-section {
+    padding: 60px 20px;
+  }
+  
+  .sda-header h2 {
+    font-size: 28px;
+  }
+  
+  .subtitle {
+    font-size: 16px;
+  }
+  
+  .beliefs-stats {
+    gap: 20px;
+    padding: 30px 20px;
+  }
+  
+  .stat-divider {
+    display: none;
+  }
+  
+  .beliefs-stats .stat-number {
+    font-size: 36px;
+  }
+  
+  .read-more-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .ministry-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ministry-item {
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .kebena-image-wrapper {
+    height: 300px;
+  }
+  
+  .section-title {
+    font-size: 1.75rem;
+  }
+}

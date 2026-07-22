@@ -50,9 +50,9 @@ export default function Dashboard() {
     email: authUser?.email || locationState?.userEmail || 'demo@church.com'
   });
   const [role] = useState(locationState?.role || 'student');
-  // Default to teacher view if user is a teacher, otherwise student view
+  // The /student route is the canonical student experience for every role.
   const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : locationState?.role === 'developer' ? 'developer' : 'student')
+    'student'
   );
 
   // Helper function to navigate with proper role prefix
