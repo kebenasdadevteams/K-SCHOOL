@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -14,6 +15,9 @@ export default function Courses() {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [courseError, setCourseError] = useState('');
 
   // Get user info from navigation state, or use defaults
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer' } | null;
@@ -41,67 +45,57 @@ export default function Courses() {
       });
     }
   }, [isStudentView, isAdminView, isTeacherManager, location.state, navigate, role]);
-  const [pendingCourseApprovals, setPendingCourseApprovals] = useState([
-    { id: 1, title: 'Christian Ethics 101', teacher: 'Teacher Mary', submittedAt: '2h ago' },
-    { id: 2, title: 'Biblical Leadership', teacher: 'Pastor John', submittedAt: '1d ago' },
-    { id: 3, title: 'Amharic Devotional Study', teacher: 'Teacher Dawit', submittedAt: '3d ago' },
-  ]);
 
-  const approveCourse = (courseId: number) => {
-    setPendingCourseApprovals((current) => current.filter((course) => course.id !== courseId));
-  };
+  useEffect(() => {
+    const loadCourses = async () => {
+      setLoadingCourses(true);
+      setCourseError('');
+      try {
+        const { data } = await api.get('/courses');
+        const courseRows = data.data || [];
+        setCourses(courseRows.map((course: any) => ({
+          id: course.id,
+          title: course.title || 'Untitled Course',
+          description: course.description || 'No description available.',
+          teacher: course.teacher_name || 'Unknown',
+          thumbnail: course.image_url || course.imageUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+          students: course.enrollment_count || 0,
+          chapters: Array.isArray(course.sections) ? course.sections.length : 0,
+          duration: course.duration || 'TBD',
+          progress: 0,
+          status: course.status || 'draft',
+          category: course.category || 'General',
+          created_at: course.created_at,
+        })));
+      } catch (error) {
+        console.error('Unable to load courses', error);
+        setCourseError('Unable to load courses from the server. Showing fallback data.');
+      } finally {
+        setLoadingCourses(false);
+      }
+    };
+    loadCourses();
+  }, []);
 
-  // Mock data
-  const courses = [
-    {
-      id: 1,
-      title: 'Introduction to Biblical Studies',
-      description: 'A comprehensive introduction to studying the Bible with historical and theological context',
-      teacher: 'Pastor John',
-      thumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-      students: 45,
-      chapters: 12,
-      duration: '8 weeks',
-      price: 0,
-      progress: 35,
-    },
-    {
-      id: 2,
-      title: 'New Testament Deep Dive',
-      description: 'Explore the New Testament books in detail with verse-by-verse analysis',
-      teacher: 'Pastor John',
-      thumbnail: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&h=300&fit=crop',
-      students: 32,
-      chapters: 16,
-      duration: '12 weeks',
-      price: 0,
-      progress: 60,
-    },
-    {
-      id: 3,
-      title: 'Christian Leadership Principles',
-      description: 'Learn biblical principles for effective leadership in ministry and life',
-      teacher: 'Teacher Mary',
-      thumbnail: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&h=300&fit=crop',
-      students: 28,
-      chapters: 8,
-      duration: '6 weeks',
-      price: 0,
-      progress: 0,
-    },
-    {
-      id: 4,
-      title: 'Amharic Bible Study',
-      description: 'የመጽሐፍ ቅዱስ ጥናት በአማርኛ ቋንቋ - Study the Bible in Amharic language',
-      teacher: 'Teacher Mary',
-      thumbnail: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=300&fit=crop',
-      students: 67,
-      chapters: 10,
-      duration: '10 weeks',
-      price: 0,
-      progress: 20,
-    },
-  ];
+  const pendingCourseApprovals = courses
+    .filter((course) => course.status === 'submitted')
+    .map((course) => ({
+      id: course.id,
+      title: course.title,
+      teacher: course.teacher,
+      submittedAt: course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Pending',
+    }));
+
+  const approveCourse = async (courseId: number) => {
+    try {
+      await api.put(`/courses/${courseId}`, { status: 'published' });
+      setCourses((current) => current.map((course) =>
+        course.id === courseId ? { ...course, status: 'published' } : course
+      ));
+    } catch (error) {
+      console.error('Unable to approve course', error);
+    }
+  };  
 
   const chapters = [
     {
@@ -150,7 +144,17 @@ export default function Courses() {
     { id: 3, courseId: 4, student: 'Samuel Mekonnen', comment: 'The Amharic explanation was very clear and practical.', time: '2d ago' },
   ];
 
-  const selectedCourseData = courses.find((course) => course.id === selectedCourse) || courses[0];
+  const selectedCourseData = courses.find((course) => course.id === selectedCourse) || courses[0] || {
+    id: 0,
+    title: 'No course available',
+    description: 'No course data was found.',
+    teacher: 'Unknown',
+    thumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+    students: 0,
+    chapters: 0,
+    duration: 'TBD',
+    progress: 0,
+  };
   const selectedCourseAssignments = teacherAssignmentQueue.filter((item) => item.courseId === selectedCourseData.id);
   const selectedCourseFeedback = teacherCourseFeedback.filter((item) => item.courseId === selectedCourseData.id);
 

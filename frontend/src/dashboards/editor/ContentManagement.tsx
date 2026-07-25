@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -14,76 +15,66 @@ export default function ContentManagement() {
   const navigate = useNavigate();
   const location = useLocation();
   const [filter, setFilter] = useState('all');
+  const [content, setContent] = useState<any[]>([]);
+  const [pendingReviewItems, setPendingReviewItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Get user info from navigation state, or use defaults
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
-  const [user] = useState({
-    full_name: locationState?.userName || 'Demo User',
-    email: locationState?.userEmail || 'demo@church.com'
-  });
   const [role] = useState(locationState?.role || 'admin');
   const isAdmin = role === 'admin';
   const isEditor = role === 'editor';
-  const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'admin')
-  );
-  const [pendingReviewItems, setPendingReviewItems] = useState([
-    { id: 1, title: 'Youth Ministry Update', type: 'post', author: 'Editor Mary', submittedAt: 'Today', verified: false },
-    { id: 2, title: 'Weekly Podcast: Faith in Action', type: 'podcast', author: 'Editor Mary', submittedAt: 'Yesterday', verified: false },
-    { id: 3, title: 'Worship Night Recording', type: 'podcast', author: 'Editor John', submittedAt: '2d ago', verified: false },
-  ]);
+
+  useEffect(() => {
+    const loadContent = async () => {
+      try {
+        setLoading(true);
+        const [allRes, reviewRes] = await Promise.all([
+          api.get('/content/all'),
+          api.get('/content/review-queue'),
+        ]);
+
+        const allContent = (allRes.data.data || []) as any[];
+        const reviewQueue = (reviewRes.data.data || []) as any[];
+
+        setContent(allContent);
+        setPendingReviewItems(
+          reviewQueue.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            type: item.type,
+            author: item.author_name || 'Unknown author',
+            submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+            verified: false,
+          }))
+        );
+      } catch (error) {
+        console.error('Unable to load content management data', error);
+        setContent([]);
+        setPendingReviewItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadContent();
+  }, []);
 
   const verifyContent = (itemId: number) => {
     setPendingReviewItems((current) => current.filter((item) => item.id !== itemId));
   };
 
-  // Mock data
-  const content = [
-    {
-      id: 1,
-      title: 'Sunday Morning Sermon: Love Your Neighbor',
-      type: 'post',
-      status: 'published',
-      author: 'Pastor John',
-      date: '2026-02-14',
-      views: 245,
-      categories: ['Sermons', 'Bible Study'],
-    },
-    {
-      id: 2,
-      title: 'Weekly Podcast: Faith in Action',
-      type: 'podcast',
-      status: 'published',
-      author: 'Editor Mary',
-      date: '2026-02-13',
-      views: 189,
-      categories: ['Podcast', 'Teaching'],
-    },
-    {
-      id: 3,
-      title: 'Youth Ministry Update',
-      type: 'post',
-      status: 'draft',
-      author: 'Editor Mary',
-      date: '2026-02-12',
-      views: 0,
-      categories: ['Youth Ministry', 'Announcements'],
-    },
-    {
-      id: 4,
-      title: 'Worship Night Recording',
-      type: 'podcast',
-      status: 'published',
-      author: 'Pastor John',
-      date: '2026-02-11',
-      views: 312,
-      categories: ['Worship', 'Music'],
-    },
-  ];
-
-  const filteredContent = content.filter(item => 
-    filter === 'all' || item.type === filter
+  const filteredContent = useMemo(
+    () => content.filter((item) => filter === 'all' || item.type === filter),
+    [content, filter]
   );
+
+  const stats = useMemo(() => {
+    const published = content.filter((item) => item.status === 'published').length;
+    const drafts = content.filter((item) => item.status === 'draft').length;
+    const totalViews = content.reduce((sum, item) => sum + Number(item.views || 0), 0);
+
+    return { totalContent: content.length, published, drafts, totalViews };
+  }, [content]);
 
   return (
     <>
@@ -126,27 +117,16 @@ export default function ContentManagement() {
         </Card>
       )}
 
-      {/* Remove old header */}
-      {/* Filters */}
       <div className="mb-6 flex gap-4 flex-wrap items-center justify-between">
         <div className="flex gap-2">
-          <Button 
-            variant={filter === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilter('all')}
-          >
+          <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>
             All Content
           </Button>
-          <Button 
-            variant={filter === 'post' ? 'default' : 'outline'}
-            onClick={() => setFilter('post')}
-          >
+          <Button variant={filter === 'post' ? 'default' : 'outline'} onClick={() => setFilter('post')}>
             <FileText className="h-4 w-4 mr-2" />
             Posts
           </Button>
-          <Button 
-            variant={filter === 'podcast' ? 'default' : 'outline'}
-            onClick={() => setFilter('podcast')}
-          >
+          <Button variant={filter === 'podcast' ? 'default' : 'outline'} onClick={() => setFilter('podcast')}>
             <Mic className="h-4 w-4 mr-2" />
             Podcasts
           </Button>
@@ -170,83 +150,76 @@ export default function ContentManagement() {
         </Dialog>
       </div>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Content</CardDescription>
-              <CardTitle className="text-3xl">4</CardTitle>
+              <CardTitle className="text-3xl">{stats.totalContent}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Published</CardDescription>
-              <CardTitle className="text-3xl text-green-600">3</CardTitle>
+              <CardTitle className="text-3xl text-green-600">{stats.published}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Drafts</CardDescription>
-              <CardTitle className="text-3xl text-orange-600">1</CardTitle>
+              <CardTitle className="text-3xl text-orange-600">{stats.drafts}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Views</CardDescription>
-              <CardTitle className="text-3xl">746</CardTitle>
+              <CardTitle className="text-3xl">{stats.totalViews}</CardTitle>
             </CardHeader>
           </Card>
         </div>
 
-        {/* Content List */}
         <div className="space-y-4">
-          {filteredContent.map((item) => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {item.type === 'post' ? (
-                        <FileText className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Mic className="h-4 w-4 text-accent" />
+          {loading ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">Loading content from the database...</div>
+          ) : filteredContent.length === 0 ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">No content found in the database.</div>
+          ) : (
+            filteredContent.map((item) => (
+              <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {item.type === 'post' ? (
+                          <FileText className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Mic className="h-4 w-4 text-accent" />
+                        )}
+                        <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>
+                          {item.status}
+                        </Badge>
+                      </div>
+                      <CardTitle className="mb-2">{item.title}</CardTitle>
+                      <CardDescription>
+                        By {item.author_name || 'Unknown'} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A'} • {Number(item.views || 0)} views
+                      </CardDescription>
+                      <div className="flex gap-2 mt-3">
+                        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
+                      {(isAdmin || isEditor) && item.status === 'draft' && (
+                        <Button variant="ghost" size="sm" onClick={() => verifyContent(item.id)}>Verify</Button>
                       )}
-                      <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>
-                        {item.status}
-                      </Badge>
-                    </div>
-                    <CardTitle className="mb-2">{item.title}</CardTitle>
-                    <CardDescription>
-                      By {item.author} • {item.date} • {item.views} views
-                    </CardDescription>
-                    <div className="flex gap-2 mt-3">
-                      {item.categories.map((cat, idx) => (
-                        <Badge key={idx} variant="outline">{cat}</Badge>
-                      ))}
+                      <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {(isAdmin || isEditor) && item.status === 'draft' && (
-                      <Button variant="ghost" size="sm" onClick={() => verifyContent(item.id)}>
-                        Verify
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            ))
+          )}
         </div>
       </main>
     </>

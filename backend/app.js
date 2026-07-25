@@ -10,6 +10,7 @@ const publicRoutes = require('./routes/public-routes');
 const editorRoutes = require('./routes/editor-routes');
 const pastorRoutes = require('./routes/pastor-routes');
 const activityRoutes = require('./routes/activity-routes');
+const teacherRoutes = require('./routes/teacher-routes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/editor', editorRoutes);
 app.use('/api/v1/pastor', pastorRoutes);
 app.use('/api/v1/activity', activityRoutes);
+app.use('/api/v1/teacher', teacherRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 app.use(errorMiddleware);

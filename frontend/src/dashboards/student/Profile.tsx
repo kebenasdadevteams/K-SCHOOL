@@ -29,8 +29,8 @@ export default function Profile() {
 
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
   const [role] = useState(locationState?.role || 'student');
-  const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'student')
+  const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
+    locationState?.view ?? 'student'
   );
 
   const [displayName, setDisplayName] = useState(authUser?.full_name || locationState?.userName || 'Demo User');

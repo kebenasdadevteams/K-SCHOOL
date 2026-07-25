@@ -51,9 +51,9 @@ export default function Settings() {
   const { user: authUser } = useAuth();
 
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
-  const [role] = useState(locationState?.role || 'student');
-  const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'student')
+  const [role] = useState('student');
+  const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
+    locationState?.view ?? 'student'
   );
 
   const [theme, setTheme] = useState('light');
@@ -123,6 +123,8 @@ export default function Settings() {
       },
     });
   };
+
+  const dashboardPath = activeView === 'student' ? '/student' : `/${activeView}`;
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
@@ -232,7 +234,7 @@ export default function Settings() {
           <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
-              onClick={() => navigateWithState('/student')} 
+              onClick={() => navigateWithState(dashboardPath)} 
               className="rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 dark:hover:border-amber-700 hover:text-amber-700 dark:hover:text-amber-400 transition-all duration-200"
             >
               <LayoutDashboard className="h-4 w-4 mr-2" />

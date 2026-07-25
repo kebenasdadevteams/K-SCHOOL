@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { BarChart3, ArrowLeft, DollarSign, Users, HeartHandshake, TrendingUp, CalendarDays } from 'lucide-react';
+import api from '../../services/api';
+import { BarChart3, ArrowLeft, Users, HeartHandshake, TrendingUp, CalendarDays } from 'lucide-react';
 
 export default function Analytics() {
   const navigate = useNavigate();
@@ -20,24 +21,67 @@ export default function Analytics() {
     email: locationState?.userEmail || 'demo@church.com',
   };
 
+  const [contentItems, setContentItems] = useState<any[]>([]);
+  const [podcasts, setPodcasts] = useState<any[]>([]);
+  const [userCount, setUserCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const [contentRes, podcastsRes, usersRes, notificationsRes] = await Promise.all([
+          api.get('/content/all'),
+          api.get('/content/podcasts'),
+          api.get('/users'),
+          api.get('/activity/notifications'),
+        ]);
+
+        const allContent = contentRes.data?.data ?? [];
+        const allPodcasts = podcastsRes.data?.data ?? [];
+        const users = usersRes.data?.data ?? [];
+        const notifications = notificationsRes.data?.data ?? [];
+
+        setContentItems(allContent);
+        setPodcasts(allPodcasts);
+        setUserCount(users.length);
+        setNotificationCount(notifications.filter((item: any) => !item.is_read).length);
+      } catch (err) {
+        console.error('Failed to load analytics data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAnalytics();
+  }, []);
+
   const donationSummary = [
-    { label: 'Total Donations', value: '$24,890', icon: DollarSign, tone: 'text-green-600' },
-    { label: 'Active Donors', value: '312', icon: Users, tone: 'text-blue-600' },
-    { label: 'Campaigns', value: '8', icon: HeartHandshake, tone: 'text-primary' },
-    { label: 'Growth', value: '+18%', icon: TrendingUp, tone: 'text-orange-600' },
+    { label: 'Total content', value: contentItems.length.toString(), icon: HeartHandshake, tone: 'text-primary' },
+    { label: 'Podcasts', value: podcasts.length.toString(), icon: Users, tone: 'text-blue-600' },
+    { label: 'Active users', value: userCount.toString(), icon: TrendingUp, tone: 'text-orange-600' },
+    { label: 'Unread notifications', value: notificationCount.toString(), icon: CalendarDays, tone: 'text-green-600' },
   ];
 
-  const recentDonations = [
-    { id: 1, name: 'Abebe K.', amount: '$150', type: 'Tithe', time: '2h ago' },
-    { id: 2, name: 'Tigist A.', amount: '$80', type: 'Offering', time: '6h ago' },
-    { id: 3, name: 'Dawit T.', amount: '$250', type: 'Building Fund', time: '1d ago' },
-  ];
+  const recentDonations = contentItems.slice(0, 3).map((item: any, index: number) => ({
+    id: `content-${item.id ?? index}`,
+    name: item.title || item.name || 'Untitled',
+    amount: item.type === 'podcast' ? 'Podcast' : item.type === 'course' ? 'Course' : 'Post',
+    type: item.category || item.type || 'Content',
+    time: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
+  }));
 
-  const campaigns = [
-    { id: 1, name: 'Church Renovation', progress: 78, target: '$15,000', raised: '$11,700' },
-    { id: 2, name: 'Youth Outreach', progress: 52, target: '$5,000', raised: '$2,600' },
-    { id: 3, name: 'Mission Support', progress: 34, target: '$8,000', raised: '$2,720' },
-  ];
+  const campaigns = contentItems.slice(0, 3).map((item: any, index: number) => ({
+    id: `campaign-${item.id ?? index}`,
+    name: item.title || 'Untitled',
+    progress: item.status === 'published' ? 100 : 40,
+    target: item.type === 'course' ? 'Course release' : item.type === 'podcast' ? 'Podcast launch' : 'Content publish',
+    raised: item.author_name ? `by ${item.author_name}` : 'by unknown',
+  }));
+
+  if (loading) {
+    return <div className="p-6 text-sm text-slate-600">Loading analytics...</div>;
+  }
 
   return (
     <div className="space-y-6">

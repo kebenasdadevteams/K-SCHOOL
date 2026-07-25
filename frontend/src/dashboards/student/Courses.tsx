@@ -16,7 +16,8 @@ export default function Courses() {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
-  const [courses, setCourses] = useState<Array<{id:number; title:string; description:string; teacher_name?:string; category?:string; students?:number; chapters?:number; duration?:string; progress?:number}>>([]);
+  const [courses, setCourses] = useState<Array<{id:number; title:string; description:string; teacher_name?:string; category?:string; students?:number; chapters?:number; duration?:string; progress?:number; thumbnail?:string}>>([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<number[]>([]);
   const [isEnrolling, setIsEnrolling] = useState(false);
 
   // Get user info from navigation state, or use defaults
@@ -27,7 +28,7 @@ export default function Courses() {
   });
   const [role] = useState(locationState?.role || 'student');
   const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'student')
+    locationState?.view ?? 'student'
   );
   const isStudentView = activeView === 'student';
   const isTeacherManager = role === 'teacher' && activeView === 'teacher';
@@ -45,16 +46,24 @@ export default function Courses() {
   useEffect(() => {
     const loadCourses = async () => {
       try {
-        const { data } = await api.get('/courses');
-        setCourses((data.data || []).map((course: any) => ({
+        const [coursesResponse, enrollmentsResponse] = await Promise.all([
+          api.get('/courses'),
+          api.get('/activity/enrollments')
+        ]);
+
+        const availableCourses = (coursesResponse.data.data || []).map((course: any) => ({
           ...course,
           teacher: course.teacher_name || course.teacher || 'Instructor',
-          thumbnail: course.thumbnail || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+          thumbnail: course.imageUrl || course.thumbnail || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
           students: course.students || 0,
-          chapters: course.chapters || 0,
+          chapters: course.sections?.length || course.chapters || 0,
           duration: course.duration || 'Self-paced',
           progress: course.progress || 0,
-        })));
+        }));
+
+        const enrolledIds = (enrollmentsResponse.data.data || []).map((item: any) => Number(item.course_id));
+        setEnrolledCourseIds(enrolledIds);
+        setCourses(availableCourses.filter((course: any) => !enrolledIds.includes(Number(course.id))));
       } catch (error) {
         console.error('Unable to load courses', error);
       }
@@ -66,11 +75,12 @@ export default function Courses() {
   const handleEnroll = async (courseId: number) => {
     setIsEnrolling(true);
     try {
-      await api.post('/activity/enroll', { course_id: courseId });
-      alert('You are now enrolled in this course.');
-    } catch (error) {
-      console.error('Unable to enroll', error);
-      alert('Enrollment could not be saved. Please try again.');
+      const { data } = await api.post('/activity/enroll', { course_id: courseId });
+      if (data?.success) {
+        setEnrolledCourseIds((current) => [...current, courseId]);
+        setCourses((current) => current.filter((course) => course.id !== courseId));
+        alert(data.message || 'You are now enrolled in this course.');
+      }
     } finally {
       setIsEnrolling(false);
     }
@@ -475,13 +485,13 @@ export default function Courses() {
                     By {course.teacher}
                   </div>
 
-                  {!isTeacherManager && course.progress > 0 && (
+                  {!isTeacherManager && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">Progress</span>
-                        <span className="font-medium">{course.progress}%</span>
+                        <span className="font-medium">{course.progress || 0}%</span>
                       </div>
-                      <Progress value={course.progress} />
+                      <Progress value={course.progress || 0} />
                     </div>
                   )}
 
@@ -490,7 +500,7 @@ export default function Courses() {
                     if (isTeacherManager) return;
                     handleEnroll(course.id);
                   }} disabled={isEnrolling}>
-                    {isTeacherManager ? 'Manage Course' : course.progress > 0 ? 'Continue' : 'Enroll Now'}
+                    {isTeacherManager ? 'Manage Course' : 'Enroll Now'}
                   </Button>
                 </div>
               </CardContent>

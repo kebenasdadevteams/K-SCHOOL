@@ -1,6 +1,7 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SidebarLayout } from '../../SidebarLayout';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -41,163 +42,61 @@ export default function Assignments() {
     full_name: locationState?.userName || 'Demo User',
     email: locationState?.userEmail || 'demo@church.com'
   });
-  const [role] = useState(locationState?.role || 'student');
-  const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin'>(
-    locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'student')
+  const [role] = useState('student');
+  const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
+    locationState?.view ?? 'student'
   );
-  const [filter, setFilter] = useState(role === 'teacher' ? 'submitted' : 'all');
+  const [filter, setFilter] = useState('all');
   const [reviewingSubmission, setReviewingSubmission] = useState<any | null>(null);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
 
-  const studentAssignments = [
-    {
-      id: 1,
-      title: 'Chapter 4 Assignment: Old Testament Analysis',
-      course: 'Introduction to Biblical Studies',
-      chapter: 'Chapter 4: The Pentateuch',
-      student_name: undefined,
-      description: 'Write a 500-word essay analyzing the key themes in the Pentateuch and their relevance to modern Christian life.',
-      due_date: '2026-02-18',
-      submitted_at: null,
-      status: 'pending',
-      feedback: null,
-      grade: null,
-    },
-    {
-      id: 2,
-      title: 'Leadership Essay Submission',
-      course: 'Christian Leadership Principles',
-      chapter: 'Chapter 2: Servant Leadership',
-      student_name: undefined,
-      description: 'Reflect on a biblical leader and explain how their example demonstrates servant leadership principles.',
-      due_date: '2026-02-20',
-      submitted_at: '2026-02-15',
-      status: 'submitted',
-      feedback: 'Excellent work! Your analysis of Moses\' leadership was insightful.',
-      grade: 'A',
-    },
-    {
-      id: 3,
-      title: 'የመጽሐፍ ቅዱስ ጥናት - ዘፍጥረት 1-3',
-      course: 'Amharic Bible Study',
-      chapter: 'Chapter 3: የዘፍጥረት መጽሐፍ',
-      student_name: undefined,
-      description: 'በዘፍጥረት መጽሐፍ 1-3 ላይ የተመሠረተ ጥናት እና ትንታኔ ያቅርቡ።',
-      due_date: '2026-02-19',
-      submitted_at: null,
-      status: 'pending',
-      feedback: null,
-      grade: null,
-    },
-    {
-      id: 4,
-      title: 'New Testament Overview Assignment',
-      course: 'New Testament Deep Dive',
-      chapter: 'Chapter 1: Introduction to the Gospels',
-      student_name: undefined,
-      description: 'Compare and contrast the four Gospel accounts, highlighting unique perspectives each author brings.',
-      due_date: '2026-02-22',
-      submitted_at: '2026-02-14',
-      status: 'graded',
-      feedback: 'Well researched! Your comparison of the synoptic gospels was particularly strong.',
-      grade: 'A-',
-    },
-  ];
+  useEffect(() => {
+    const loadAssignments = async () => {
+      try {
+        const { data } = await api.get('/activity/assignments');
+        setAssignments((data.data || []).map((assignment: any) => ({
+          ...assignment,
+          chapter: assignment.chapter || 'Lesson activity',
+          description: assignment.description || 'No description provided.',
+          due_date: assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'TBA',
+          submitted_at: assignment.submittedAt ? new Date(assignment.submittedAt).toLocaleDateString() : null,
+          feedback: assignment.feedback || null,
+          grade: assignment.grade || null,
+        })));
+      } catch (error) {
+        console.error('Unable to load assignments', error);
+      } finally {
+        setLoadingAssignments(false);
+      }
+    };
 
-  const [teacherSubmissions, setTeacherSubmissions] = useState([
-    {
-      id: 1,
-      assignmentId: 1,
-      title: 'Chapter 4 Assignment: Old Testament Analysis',
-      course: 'Introduction to Biblical Studies',
-      chapter: 'Chapter 4: The Pentateuch',
-      student_name: 'Abebe Kebede',
-      description: 'Write a 500-word essay analyzing the key themes in the Pentateuch and their relevance to modern Christian life.',
-      due_date: '2026-02-18',
-      submitted_at: '2026-02-16',
-      status: 'submitted',
-      submission: 'The Pentateuch reveals covenant, law, and the beginning of God\'s redemptive story. This essay explains why those themes still matter for Christian discipleship today.',
-      feedback: '',
-      grade: '',
-    },
-    {
-      id: 2,
-      assignmentId: 2,
-      title: 'Leadership Essay Submission',
-      course: 'Christian Leadership Principles',
-      chapter: 'Chapter 2: Servant Leadership',
-      student_name: 'Tigist Alemayehu',
-      description: 'Reflect on a biblical leader and explain how their example demonstrates servant leadership principles.',
-      due_date: '2026-02-20',
-      submitted_at: '2026-02-15',
-      status: 'graded',
-      submission: 'I focused on Moses as an example of servant leadership because he consistently interceded for the people and obeyed God even when the task was difficult.',
-      feedback: 'Good structure. Add one more leadership example next time.',
-      grade: 'B+',
-    },
-    {
-      id: 3,
-      assignmentId: 3,
-      title: 'Amharic Bible Study Reflection',
-      course: 'Amharic Bible Study',
-      chapter: 'Chapter 3: የዘፍጥረት መጽሐፍ',
-      student_name: 'Dawit Tesfaye',
-      description: 'በዘፍጥረት መጽሐፍ 1-3 ላይ የተመሠረተ ጥናት እና ትንታኔ ያቅርቡ።',
-      due_date: '2026-02-19',
-      submitted_at: '2026-02-17',
-      status: 'submitted',
-      submission: 'ፍጥረት 1-3 የእግዚአብሔር ፍጥረት እና የሰው ኃላፊነት ላይ ግልጽ መልዕክት ይዟል።',
-      feedback: '',
-      grade: '',
-    },
-    {
-      id: 4,
-      assignmentId: 4,
-      title: 'New Testament Overview Assignment',
-      course: 'New Testament Deep Dive',
-      chapter: 'Chapter 1: Introduction to the Gospels',
-      student_name: 'Abebe Kebede',
-      description: 'Compare and contrast the four Gospel accounts, highlighting unique perspectives each author brings.',
-      due_date: '2026-02-22',
-      submitted_at: '2026-02-14',
-      status: 'graded',
-      submission: 'The four Gospels present the same Savior from distinct perspectives. Matthew emphasizes fulfillment, Mark emphasizes action, Luke emphasizes compassion, and John emphasizes divinity.',
-      feedback: 'Well researched! Your comparison of the synoptic gospels was particularly strong.',
-      grade: 'A-',
-    },
-  ]);
-
-  const assignments = role === 'teacher' ? teacherSubmissions : studentAssignments;
+    loadAssignments();
+  }, []);
 
   const filteredAssignments = assignments.filter(assignment => {
     if (filter === 'all') return true;
     return assignment.status === filter;
   });
 
-  const stats = role === 'teacher'
-    ? {
-        total: assignments.length,
-        pending: assignments.filter(a => a.status === 'submitted').length,
-        submitted: assignments.filter(a => a.status === 'graded').length,
-        graded: new Set(assignments.map(a => a.student_name)).size,
-      }
-    : {
-        total: assignments.length,
-        pending: assignments.filter(a => a.status === 'pending').length,
-        submitted: assignments.filter(a => a.status === 'submitted').length,
-        graded: assignments.filter(a => a.status === 'graded').length,
-      };
+  const stats = {
+    total: assignments.length,
+    pending: assignments.filter(a => a.status === 'pending').length,
+    submitted: assignments.filter(a => a.status === 'submitted').length,
+    graded: assignments.filter(a => a.status === 'graded').length,
+  };
 
   const handleTeacherGradeSave = (submissionId: number, grade: string, feedback: string) => {
-    setTeacherSubmissions((current) =>
-      current.map((submission) =>
-        submission.id === submissionId
+    setAssignments((current) =>
+      current.map((assignment) =>
+        assignment.id === submissionId
           ? {
-              ...submission,
+              ...assignment,
               grade,
               feedback,
               status: 'graded',
             }
-          : submission
+          : assignment
       )
     );
   };
@@ -256,25 +155,17 @@ export default function Assignments() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-              {role === 'teacher' ? 'Received Assignments' : 'My Assignments'}
+              My Assignments
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-sm font-medium text-amber-600">
                 <Sparkles className="h-4 w-4" />
-                {stats.total} {role === 'teacher' ? 'Submissions' : 'Assignments'}
+                {stats.total} Assignments
               </span>
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               <Zap className="h-4 w-4 text-amber-500" />
-              {role === 'teacher' 
-                ? 'Review submitted assignments from your students' 
-                : 'Track your assignments and submissions'}
+              Track your assignments and submissions
             </p>
           </div>
-          {role === 'teacher' && stats.pending > 0 && (
-            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-sm">
-              <AlertCircle className="h-4 w-4 mr-1" />
-              {stats.pending} Needs Review
-            </Badge>
-          )}
         </div>
       </div>
 
@@ -284,11 +175,11 @@ export default function Assignments() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <ClipboardCheck className="h-4 w-4 text-amber-500" />
-              {role === 'teacher' ? 'Total Submissions' : 'Total Assignments'}
+              Total Assignments
             </CardDescription>
             <CardTitle className="text-3xl flex items-center gap-2">
               {stats.total}
-              <span className="text-sm font-normal text-muted-foreground">{role === 'teacher' ? 'submissions' : 'assignments'}</span>
+              <span className="text-sm font-normal text-muted-foreground">assignments</span>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -296,7 +187,7 @@ export default function Assignments() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Timer className="h-4 w-4 text-amber-500" />
-              {role === 'teacher' ? 'Needs Review' : 'Pending'}
+              Pending
             </CardDescription>
             <CardTitle className="text-3xl flex items-center gap-2 text-amber-600">
               {stats.pending}
@@ -308,7 +199,7 @@ export default function Assignments() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Send className="h-4 w-4 text-blue-500" />
-              {role === 'teacher' ? 'Reviewed' : 'Submitted'}
+              Submitted
             </CardDescription>
             <CardTitle className="text-3xl flex items-center gap-2 text-blue-600">
               {stats.submitted}
@@ -320,11 +211,11 @@ export default function Assignments() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Award className="h-4 w-4 text-green-500" />
-              {role === 'teacher' ? 'Students' : 'Graded'}
+              Graded
             </CardDescription>
             <CardTitle className="text-3xl flex items-center gap-2 text-green-600">
               {stats.graded}
-              <span className="text-sm font-normal text-muted-foreground">{role === 'teacher' ? 'students' : 'graded'}</span>
+              <span className="text-sm font-normal text-muted-foreground">graded</span>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -390,7 +281,11 @@ export default function Assignments() {
 
       {/* Assignments List */}
       <div className="space-y-4">
-        {filteredAssignments.map((assignment) => {
+        {loadingAssignments ? (
+          <Card className="border border-slate-200 dark:border-slate-700">
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">Loading assignments…</CardContent>
+          </Card>
+        ) : filteredAssignments.map((assignment) => {
           const StatusIcon = getStatusIcon(assignment.status);
           const isItemOverdue = assignment.status === 'pending' && isOverdue(assignment.due_date);
           

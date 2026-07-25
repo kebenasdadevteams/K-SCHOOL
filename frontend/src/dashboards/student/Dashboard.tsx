@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { SidebarLayout } from '../../SidebarLayout';
+import api from '../../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Progress } from '../../components/ui/progress';
@@ -50,9 +51,8 @@ export default function Dashboard() {
     email: authUser?.email || locationState?.userEmail || 'demo@church.com'
   });
   const [role] = useState(locationState?.role || 'student');
-  // The /student route is the canonical student experience for every role.
   const [activeView, setActiveView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(
-    'student'
+    locationState?.view ?? 'student'
   );
 
   // Helper function to navigate with proper role prefix
@@ -64,99 +64,75 @@ export default function Dashboard() {
       navigate(path, {
         state: {
           ...((location.state as Record<string, unknown>) || {}),
-          role,
+          role: activeView === 'student' ? 'student' : role,
           view: activeView,
         },
       });
       return;
     }
     
-    // Otherwise, prepend the current role
-    const fullPath = `/${role}${path.startsWith('/') ? path : `/${path}`}`;
+    // Otherwise, keep the active view rooted in Student View when the user is in student mode.
+    const effectiveRoot = activeView === 'student' ? 'student' : role;
+    const fullPath = `/${effectiveRoot}${path.startsWith('/') ? path : `/${path}`}`;
     navigate(fullPath, {
       state: {
         ...((location.state as Record<string, unknown>) || {}),
-        role,
+        role: activeView === 'student' ? 'student' : role,
         view: activeView,
       },
     });
   };
 
-  // Mock data based on database schema
-  const studentStats = {
-    enrolledCourses: 3,
-    completedLessons: 24,
-    totalLessons: 48,
-    certificates: 1,
-    hoursLearned: 18,
-  };
+  const [studentStats, setStudentStats] = useState({ enrolledCourses: 0, completedLessons: 0, totalLessons: 0, certificates: 0, hoursLearned: 0 });
+  const [myCourses, setMyCourses] = useState<any[]>([]);
+  const [upcomingAssignments, setUpcomingAssignments] = useState<any[]>([]);
+  const [recentPodcasts, setRecentPodcasts] = useState<any[]>([]);
+  const [progressSummary, setProgressSummary] = useState<any>(null);
 
-  const myCourses = [
-    {
-      id: 1,
-      title: 'Introduction to Biblical Studies',
-      teacher: 'Pastor John',
-      progress: 65,
-      nextLesson: 'Chapter 4: The Pentateuch',
-      totalChapters: 12,
-      completedChapters: 7,
-      thumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    },
-    {
-      id: 2,
-      title: 'Amharic Bible Study',
-      teacher: 'Teacher Mary',
-      progress: 40,
-      nextLesson: 'Chapter 3: የዘፍጥረት መጽሐፍ',
-      totalChapters: 10,
-      completedChapters: 4,
-      thumbnail: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=300&fit=crop',
-    },
-    {
-      id: 3,
-      title: 'Christian Leadership Principles',
-      teacher: 'Pastor David',
-      progress: 20,
-      nextLesson: 'Chapter 2: Servant Leadership',
-      totalChapters: 8,
-      completedChapters: 1,
-      thumbnail: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&h=300&fit=crop',
-    },
-  ];
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const [enrollmentsResponse, assignmentsResponse, podcastsResponse, progressResponse] = await Promise.all([
+          api.get('/activity/enrollments'),
+          api.get('/activity/assignments'),
+          api.get('/content/podcasts'),
+          api.get('/activity/progress')
+        ]);
 
-  const upcomingAssignments = [
-    {
-      id: 1,
-      title: 'Chapter 4 Assignment: Old Testament Analysis',
-      course: 'Biblical Studies',
-      dueDate: 'Feb 18, 2026',
-      status: 'pending',
-    },
-    {
-      id: 2,
-      title: 'Leadership Essay Submission',
-      course: 'Christian Leadership',
-      dueDate: 'Feb 20, 2026',
-      status: 'pending',
-    },
-  ];
+        const enrolledCourses = (enrollmentsResponse.data.data || []).map((course: any) => ({
+          ...course,
+          thumbnail: course.thumbnail || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+          progress: 0,
+          nextLesson: 'Continue learning',
+          totalChapters: 1,
+          completedChapters: 0,
+        }));
 
-  const recentPodcasts = [
-    {
-      id: 1,
-      title: 'Sunday Sermon: Walking in Faith',
-      author: 'Pastor John',
-      duration: '45 min',
-      thumbnail: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=200&h=200&fit=crop',
-    },
-    {
-      id: 2,
-      title: 'Daily Devotional - Feb 15',
-      author: 'Pastor Michael',
-      duration: '15 min',
-      thumbnail: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?w=200&h=200&fit=crop',
-    },
-  ];
+        setMyCourses(enrolledCourses);
+        setStudentStats((prev) => ({ ...prev, enrolledCourses: enrolledCourses.length }));
+        setUpcomingAssignments((assignmentsResponse.data.data || []).filter((assignment: any) => assignment.status !== 'graded').slice(0, 3));
+        setRecentPodcasts((podcastsResponse.data.data || []).slice(0, 3).map((podcast: any) => ({
+          id: podcast.id,
+          title: podcast.title,
+          author: podcast.author_name || 'K-School Team',
+          duration: podcast.duration ? `${Math.round(podcast.duration / 60)} min` : 'New',
+          thumbnail: podcast.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=200&h=200&fit=crop',
+        })));
+        setProgressSummary(progressResponse.data.data || null);
+        setStudentStats((prev) => ({
+          ...prev,
+          completedLessons: progressResponse.data.data?.submitted_assignments || 0,
+          totalLessons: progressResponse.data.data?.total_assignments || 0,
+          certificates: enrolledCourses.length > 0 ? 1 : 0,
+          hoursLearned: Math.max(1, Math.round((progressResponse.data.data?.overall_progress || 0) / 10)),
+        }));
+      } catch (error) {
+        console.error('Unable to load dashboard data', error);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   const weeklyActivity = [
     { label: 'Mon', value: 24 },
@@ -168,7 +144,7 @@ export default function Dashboard() {
     { label: 'Sun', value: 48 },
   ];
 
-  const completionPercentage = (studentStats.completedLessons / studentStats.totalLessons) * 100;
+  const completionPercentage = studentStats.totalLessons > 0 ? (studentStats.completedLessons / studentStats.totalLessons) * 100 : 0;
 
   // Teacher-specific data
   const teacherStats = {
@@ -242,7 +218,7 @@ export default function Dashboard() {
     activeSites: 1,
   };
 
-  if (role === 'admin') {
+  if (role === 'admin' && activeView === 'admin') {
     return (
       <SidebarLayout
         userRole={role}
@@ -437,7 +413,7 @@ export default function Dashboard() {
     );
   }
 
-  if (role === 'editor') {
+  if (role === 'editor' && activeView === 'editor') {
     return (
       <SidebarLayout
         userRole={role}
@@ -575,7 +551,7 @@ export default function Dashboard() {
     );
   }
 
-  if (role === 'developer') {
+  if (role === 'developer' && activeView === 'developer') {
     return (
       <SidebarLayout
         userRole={role}
@@ -1278,21 +1254,23 @@ export default function Dashboard() {
                   <Badge className="bg-[#865014] text-white">{upcomingAssignments.length}</Badge>
                 </div>
                 <div className="space-y-3">
-                  {upcomingAssignments.map((assignment) => (
-                    <div key={assignment.id} className="p-3 rounded-xl bg-white border border-[#E0AE3F]/30 hover:border-[#E0AE3F] hover:shadow transition-all">
-                      <div className="flex items-start gap-2 mb-2">
-                        <Calendar className="h-4 w-4 text-[#865014] mt-0.5" />
-                        <div className="flex-1">
-                          <h5 className="font-medium text-sm text-[#4B2F18]">{assignment.title}</h5>
-                          <p className="text-xs text-[#7F6243] mt-1">{assignment.course}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-[#865014] font-semibold">Due: {assignment.dueDate}</span>
-                        <Button size="sm" variant="outline" className="border-[#E0AE3F]/30 text-[#865014] hover:bg-[#E0AE3F]/10 hover:border-[#E0AE3F]">Start</Button>
+                  {upcomingAssignments.length === 0 ? (
+                  <p className="text-sm text-[#7F6243]">No upcoming assignments right now.</p>
+                ) : upcomingAssignments.map((assignment) => (
+                  <div key={assignment.id} className="p-3 rounded-xl bg-white border border-[#E0AE3F]/30 hover:border-[#E0AE3F] hover:shadow transition-all">
+                    <div className="flex items-start gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-[#865014] mt-0.5" />
+                      <div className="flex-1">
+                        <h5 className="font-medium text-sm text-[#4B2F18]">{assignment.title}</h5>
+                        <p className="text-xs text-[#7F6243] mt-1">{assignment.course}</p>
                       </div>
                     </div>
-                  ))}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#865014] font-semibold">Due: {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'TBA'}</span>
+                      <Button size="sm" variant="outline" className="border-[#E0AE3F]/30 text-[#865014] hover:bg-[#E0AE3F]/10 hover:border-[#E0AE3F]" onClick={() => navigateTo('/student/assignments')}>Start</Button>
+                    </div>
+                  </div>
+                ))}
                   <Button variant="outline" className="w-full border-[#E0AE3F]/30 text-[#865014] hover:bg-[#E0AE3F]/10" onClick={() => navigateTo('/student/assignments')}>View All Assignments</Button>
                 </div>
               </div>
@@ -1306,8 +1284,10 @@ export default function Dashboard() {
                   <Headphones className="h-5 w-5 text-[#865014]" />
                 </div>
                 <div className="space-y-3">
-                  {recentPodcasts.map((podcast) => (
-                    <div key={podcast.id} className="flex gap-3 cursor-pointer rounded-xl border border-[#E0AE3F]/30 bg-white p-3 transition-all hover:border-[#E0AE3F] hover:shadow hover:scale-[1.02]">
+                  {recentPodcasts.length === 0 ? (
+                    <p className="text-sm text-[#7F6243]">No podcasts published yet.</p>
+                  ) : recentPodcasts.map((podcast) => (
+                    <div key={podcast.id} className="flex gap-3 cursor-pointer rounded-xl border border-[#E0AE3F]/30 bg-white p-3 transition-all hover:border-[#E0AE3F] hover:shadow hover:scale-[1.02]" onClick={() => navigateTo('/student/podcasts')}>
                       <img src={podcast.thumbnail} alt={podcast.title} className="w-16 h-16 object-cover rounded-lg" />
                       <div className="flex-1">
                         <h5 className="font-medium text-sm text-[#4B2F18] line-clamp-2">{podcast.title}</h5>

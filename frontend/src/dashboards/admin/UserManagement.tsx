@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { cn } from '../../components/ui/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { 
@@ -21,7 +22,8 @@ interface User {
   id: number;
   full_name: string;
   email: string;
-  role: string;
+  role: string | string[];
+  roles?: string[];
   is_blocked: boolean;
   is_active: boolean;
   created_at: string;
@@ -42,6 +44,11 @@ interface RoleStats {
   total: number;
 }
 
+const getRoleValue = (role: string | string[] | undefined) => {
+  if (Array.isArray(role)) return role[0] || 'student';
+  return role || 'student';
+};
+
 export default function UserManagement() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,6 +57,7 @@ export default function UserManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -86,48 +94,57 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
+    setErrorMessage(null);
+
     try {
       const response = await api.get('/users');
-      setUsers(response.data.data || []);
+      const usersFromApi = (response.data.data || []).map((user: any) => ({
+        ...user,
+        roles: Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [],
+        role: Array.isArray(user.roles) ? user.roles[0] : user.role || 'student',
+        is_blocked: Boolean(user.is_blocked),
+        is_active: user.is_active ?? true,
+        last_login: user.last_login || null,
+      }));
+
+      setUsers(usersFromApi);
     } catch (error) {
       console.error('Failed to fetch users:', error);
-      // Fallback mock data
-      setUsers([
-        { id: 1, full_name: 'John Smith', email: 'john@church.com', role: 'admin', is_blocked: false, is_active: true, created_at: '2024-01-15', last_login: '2024-12-10', phone: '+1 (555) 123-4567', department: 'Leadership' },
-        { id: 2, full_name: 'Mary Johnson', email: 'mary@church.com', role: 'teacher', is_blocked: false, is_active: true, created_at: '2024-02-20', last_login: '2024-12-09', phone: '+1 (555) 234-5678', department: 'Education' },
-        { id: 3, full_name: 'Pastor David', email: 'david@church.com', role: 'pastor', is_blocked: false, is_active: true, created_at: '2023-11-01', last_login: '2024-12-08', phone: '+1 (555) 345-6789', department: 'Pastoral' },
-        { id: 4, full_name: 'Lisa Anderson', email: 'lisa@church.com', role: 'editor', is_blocked: false, is_active: true, created_at: '2024-03-10', last_login: '2024-12-07', phone: '+1 (555) 456-7890', department: 'Media' },
-        { id: 5, full_name: 'Mike Developer', email: 'mike@church.com', role: 'developer', is_blocked: false, is_active: true, created_at: '2024-04-05', last_login: '2024-12-06', phone: '+1 (555) 567-8901', department: 'Technology' },
-        { id: 6, full_name: 'Student One', email: 'student1@church.com', role: 'student', is_blocked: false, is_active: true, created_at: '2024-05-12', last_login: '2024-12-05', phone: '+1 (555) 678-9012', department: 'Discipleship' },
-        { id: 7, full_name: 'Blocked User', email: 'blocked@church.com', role: 'student', is_blocked: true, is_active: false, created_at: '2024-06-18', last_login: '2024-11-20', phone: '+1 (555) 789-0123', department: 'None' },
-      ]);
+      setUsers([]);
+      setErrorMessage('Unable to load users from the database. Please verify your API connection and admin access.');
     } finally {
       setLoading(false);
     }
   };
 
   const hasRole = (user: User, roleName: string) => {
-    if (!user || !user.role) return false;
-    if (Array.isArray(user.role)) {
-      return user.role.includes(roleName);
-    }
-    return user.role === roleName;
+    const normalizedRoles = Array.isArray(user.roles)
+      ? user.roles
+      : Array.isArray(user.role)
+      ? user.role
+      : user.role
+      ? [user.role]
+      : [];
+    return normalizedRoles.includes(roleName);
   };
 
+  const [activeRoleFilter, setActiveRoleFilter] = useState('all');
+
   const filteredUsers = useMemo(() => {
+    const effectiveRoleFilter = activeRoleFilter !== 'all' ? activeRoleFilter : roleFilter;
     return users.filter((user) => {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (user.full_name?.toLowerCase() || '').includes(searchLower) ||
                            (user.email?.toLowerCase() || '').includes(searchLower) ||
                            (user.department?.toLowerCase() || '').includes(searchLower);
-      const matchesRole = roleFilter === 'all' || hasRole(user, roleFilter);
+      const matchesRole = effectiveRoleFilter === 'all' || hasRole(user, effectiveRoleFilter);
       const matchesStatus = statusFilter === 'all' || 
                            (statusFilter === 'active' && !user.is_blocked && user.is_active) ||
                            (statusFilter === 'blocked' && user.is_blocked) ||
                            (statusFilter === 'inactive' && !user.is_active && !user.is_blocked);
       return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter, activeRoleFilter]);
 
   const roleStats: RoleStats = {
     admin: users.filter((u) => hasRole(u, 'admin')).length,
@@ -173,9 +190,7 @@ export default function UserManagement() {
   const handleRoleChange = async (userId: number, newRole: string) => {
     try {
       await api.put(`/users/${userId}/roles`, { roles: [newRole] });
-      setUsers((current) => current.map((user) => 
-        user.id === userId ? { ...user, role: newRole } : user
-      ));
+      await fetchUsers();
       setIsRoleDialogOpen(false);
       setSelectedUser(null);
     } catch (err) {
@@ -190,17 +205,30 @@ export default function UserManagement() {
       return;
     }
     try {
-      const response = await api.post('/users', {
+      await api.post('/users', {
         full_name: newUser.full_name,
         email: newUser.email,
-        role: newUser.role,
+        roles: [newUser.role],
         password: newUser.password,
       });
-      setUsers([...users, response.data.data]);
+
+      await fetchUsers();
       setIsAddUserDialogOpen(false);
       setNewUser({ full_name: '', email: '', role: 'student', password: '', confirm_password: '' });
     } catch (err) {
       console.error('Failed to add user:', err);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    try {
+      await api.delete(`/users/${selectedUser.id}`);
+      await fetchUsers();
+      setSelectedUser(null);
+      setIsDeleteDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
     }
   };
 
@@ -209,16 +237,15 @@ export default function UserManagement() {
       const user = users.find(u => u.id === userId);
       if (!user) return;
       await api.put(`/users/${userId}/block`, { block: !user.is_blocked });
-      setUsers((current) => current.map((u) => 
-        u.id === userId ? { ...u, is_blocked: !u.is_blocked, is_active: u.is_active ? !u.is_blocked : u.is_active } : u
-      ));
+      await fetchUsers();
     } catch (err) {
       console.error('Failed to toggle block:', err);
     }
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    if (!role) return 'bg-gray-500';
+  const getRoleBadgeColor = (role: string | string[]) => {
+    const effectiveRole = getRoleValue(role);
+    if (!effectiveRole) return 'bg-gray-500';
     const colors: Record<string, string> = {
       admin: 'bg-[#865014]',
       editor: 'bg-[#E0AE3F]',
@@ -227,11 +254,12 @@ export default function UserManagement() {
       developer: 'bg-[#865014]',
       student: 'bg-gray-500',
     };
-    return colors[role] || 'bg-gray-500';
+    return colors[effectiveRole] || 'bg-gray-500';
   };
 
-  const getRoleIcon = (role: string) => {
-    if (!role) return <Users className="h-3.5 w-3.5" />;
+  const getRoleIcon = (role: string | string[]) => {
+    const effectiveRole = getRoleValue(role);
+    if (!effectiveRole) return <Users className="h-3.5 w-3.5" />;
     const icons: Record<string, any> = {
       admin: <Crown className="h-3.5 w-3.5" />,
       editor: <Edit className="h-3.5 w-3.5" />,
@@ -240,7 +268,7 @@ export default function UserManagement() {
       developer: <Briefcase className="h-3.5 w-3.5" />,
       student: <GraduationCap className="h-3.5 w-3.5" />,
     };
-    return icons[role] || <Users className="h-3.5 w-3.5" />;
+    return icons[effectiveRole] || <Users className="h-3.5 w-3.5" />;
   };
 
   const formatDate = (dateString: string) => {
@@ -278,20 +306,25 @@ export default function UserManagement() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const StatCard = ({ icon, label, value, color }: any) => (
-    <Card className="border-[#E0AE3F]/10 hover:border-[#E0AE3F]/30 transition-all hover:shadow-sm">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardDescription className="flex items-center gap-1 text-xs font-medium text-[#865014]/60">
-            {icon}
-            {label}
-          </CardDescription>
-          <div className={`w-8 h-8 rounded-full bg-[#F6EBD8] flex items-center justify-center ${color}`}>
-            <span className="text-[#865014] font-bold text-sm">{value}</span>
-          </div>
+  const StatCard = ({ icon, label, value, color, isActive, onClick }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border p-3 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#865014]/30",
+        isActive ? 'border-[#865014] bg-[#fff7e6] shadow-sm' : 'border-[#E0AE3F]/10 bg-white hover:border-[#E0AE3F]/30 hover:shadow-sm'
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <CardDescription className="flex items-center gap-1 text-xs font-medium text-[#865014]/60">
+          {icon}
+          {label}
+        </CardDescription>
+        <div className={`w-8 h-8 rounded-full bg-[#F6EBD8] flex items-center justify-center ${color || 'text-[#865014]'}`}>
+          <span className="font-bold text-sm">{value}</span>
         </div>
-      </CardHeader>
-    </Card>
+      </div>
+    </button>
   );
 
   return (
@@ -338,13 +371,76 @@ export default function UserManagement() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        <StatCard icon={<Crown className="h-3 w-3" />} label="Admin" value={roleStats.admin} />
-        <StatCard icon={<Edit className="h-3 w-3" />} label="Editor" value={roleStats.editor} />
-        <StatCard icon={<BookOpen className="h-3 w-3" />} label="Teacher" value={roleStats.teacher} />
-        <StatCard icon={<Star className="h-3 w-3" />} label="Pastor" value={roleStats.pastor} />
-        <StatCard icon={<Briefcase className="h-3 w-3" />} label="Developer" value={roleStats.developer} />
-        <StatCard icon={<GraduationCap className="h-3 w-3" />} label="Student" value={roleStats.student} />
-        <StatCard icon={<Users className="h-3 w-3" />} label="Total" value={roleStats.total} />
+        <StatCard
+          icon={<Crown className="h-3 w-3" />}
+          label="Admin"
+          value={roleStats.admin}
+          isActive={activeRoleFilter === 'admin'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'admin' ? 'all' : 'admin');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<Edit className="h-3 w-3" />}
+          label="Editor"
+          value={roleStats.editor}
+          isActive={activeRoleFilter === 'editor'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'editor' ? 'all' : 'editor');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<BookOpen className="h-3 w-3" />}
+          label="Teacher"
+          value={roleStats.teacher}
+          isActive={activeRoleFilter === 'teacher'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'teacher' ? 'all' : 'teacher');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<Star className="h-3 w-3" />}
+          label="Pastor"
+          value={roleStats.pastor}
+          isActive={activeRoleFilter === 'pastor'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'pastor' ? 'all' : 'pastor');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<Briefcase className="h-3 w-3" />}
+          label="Developer"
+          value={roleStats.developer}
+          isActive={activeRoleFilter === 'developer'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'developer' ? 'all' : 'developer');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<GraduationCap className="h-3 w-3" />}
+          label="Student"
+          value={roleStats.student}
+          isActive={activeRoleFilter === 'student'}
+          onClick={() => {
+            setActiveRoleFilter(activeRoleFilter === 'student' ? 'all' : 'student');
+            setRoleFilter('all');
+          }}
+        />
+        <StatCard
+          icon={<Users className="h-3 w-3" />}
+          label="Total"
+          value={roleStats.total}
+          isActive={activeRoleFilter === 'all'}
+          onClick={() => {
+            setActiveRoleFilter('all');
+            setRoleFilter('all');
+          }}
+        />
       </div>
 
       {/* Filters */}
@@ -452,7 +548,7 @@ export default function UserManagement() {
                             </h3>
                             <Badge className={`${getRoleBadgeColor(user.role)} text-white text-xs px-2.5 py-0.5 flex items-center gap-1`}>
                               {getRoleIcon(user.role)}
-                              <span>{user.role ? user.role.toUpperCase() : 'UNKNOWN'}</span>
+                              <span>{getRoleValue(user.role).toUpperCase()}</span>
                             </Badge>
                             {user.is_blocked ? (
                               <Badge variant="outline" className="border-red-200 text-red-600 bg-red-50 text-xs px-2.5 py-0.5 flex items-center gap-1">
@@ -762,7 +858,7 @@ export default function UserManagement() {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
               Cancel
             </Button>
-            <Button className="bg-red-600 hover:bg-red-700 text-white">
+            <Button onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700 text-white">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete User
             </Button>
@@ -775,7 +871,7 @@ export default function UserManagement() {
 
 // Edit Role Form Component
 function EditRoleForm({ user, onRoleChange, onCancel }: { user: User; onRoleChange: (role: string) => void; onCancel: () => void }) {
-  const [selectedRole, setSelectedRole] = useState(user.role || 'student');
+  const [selectedRole, setSelectedRole] = useState(Array.isArray(user.role) ? user.role[0] : user.role || 'student');
 
   const roleOptions = [
     { 

@@ -1,8 +1,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-
 import { Textarea } from '../../components/ui/textarea';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { ScrollArea } from '../../components/ui/scroll-area';
@@ -53,9 +53,11 @@ export default function Messages() {
   const [role] = useState(locationState?.role || 'editor');
   const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : locationState?.role === 'developer' ? 'developer' : 'editor'));
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedContactId, setSelectedContactId] = useState(1);
+  const [selectedContactId, setSelectedContactId] = useState(0);
   const [draftMessage, setDraftMessage] = useState('');
   const [mobileView, setMobileView] = useState<'inbox' | 'chat'>('inbox');
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [threads, setThreads] = useState<Record<number, ChatMessage[]>>({});
 
   const user = {
     full_name: locationState?.userName || 'Demo User',
@@ -71,26 +73,6 @@ export default function Messages() {
       },
     });
   };
-
-  const contacts: Contact[] = useMemo(() => [
-    { id: 1, name: 'Teacher Mary', role: 'Instructor', preview: 'Please submit your chapter summary.', unread: 2, time: '08:08' },
-    { id: 2, name: 'Pastor John', role: 'Mentor', preview: 'Great work on your last assignment.', unread: 0, time: 'Yesterday' },
-    { id: 3, name: 'Class Group', role: 'Study Group', preview: 'We will meet after the podcast.', unread: 4, time: '1d' },
-    { id: 4, name: 'Lisa Baker', role: 'Volunteer', preview: 'I sent the resources you asked for.', unread: 1, time: '3d' },
-  ], []);
-
-  const [threads, setThreads] = useState<Record<number, ChatMessage[]>>({
-    1: [
-      { id: 1, sender: 'them', text: 'Please submit your chapter summary.', time: '09:10' },
-      { id: 2, sender: 'me', text: 'I am working on it and will send it today.', time: '09:14' },
-    ],
-    2: [{ id: 1, sender: 'them', text: 'Great work on your last assignment.', time: 'Yesterday' }],
-    3: [{ id: 1, sender: 'them', text: 'We will meet after the podcast.', time: '08:45' }],
-    4: [
-      { id: 1, sender: 'them', text: 'I sent the resources you asked for.', time: '10:12' },
-      { id: 2, sender: 'me', text: 'Perfect, thank you!', time: '10:15' },
-    ],
-  });
 
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -122,10 +104,61 @@ export default function Messages() {
     };
   }, [videoStream]);
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const { data } = await api.get('/activity/messages');
+        const messageRows = (data.data || []) as any[];
+        const currentUser = JSON.parse(localStorage.getItem('kschool_user') || '{}');
+        const currentUserId = Number(currentUser.id || 0);
+
+        const grouped: Record<number, ChatMessage[]> = {};
+        const contactMap = new Map<number, Contact>();
+
+        messageRows.forEach((message: any) => {
+          const senderId = Number(message.sender_id);
+          const senderName = message.sender_name || `User ${senderId}`;
+          const normalizedMessage: ChatMessage = {
+            id: message.id,
+            sender: senderId === currentUserId ? 'me' : 'them',
+            text: message.content,
+            time: new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          };
+
+          grouped[senderId] = [...(grouped[senderId] || []), normalizedMessage].sort((a, b) => new Date((a as any).time).getTime() - new Date((b as any).time).getTime());
+
+          contactMap.set(senderId, {
+            id: senderId,
+            name: senderName,
+            role: 'Team member',
+            preview: message.content,
+            unread: 0,
+            time: new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          });
+        });
+
+        const loadedContacts = Array.from(contactMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        setContacts(loadedContacts);
+        setThreads(grouped);
+        if (loadedContacts[0]) {
+          setSelectedContactId(loadedContacts[0].id);
+        }
+      } catch (error) {
+        console.error('Unable to load messages from database', error);
+        setContacts([]);
+        setThreads({});
+      }
+    };
+
+    loadMessages();
+  }, []);
+
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((contact) =>
+      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [contacts, searchTerm]);
 
   const selectedContact = contacts.find((contact) => contact.id === selectedContactId) || contacts[0];
   const messages = threads[selectedContactId] || [];
@@ -140,23 +173,33 @@ export default function Messages() {
     return tones[(id - 1) % tones.length];
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = draftMessage.trim();
-    if (!text) return;
+    if (!text || !selectedContactId) return;
 
-    setThreads((current) => ({
-      ...current,
-      [selectedContactId]: [
-        ...(current[selectedContactId] || []),
-        {
-          id: Date.now(),
-          sender: 'me',
-          text,
-          time: 'Now',
-        },
-      ],
-    }));
-    setDraftMessage('');
+    try {
+      await api.post('/activity/messages', {
+        receiver_id: selectedContactId,
+        content: text,
+      });
+
+      setThreads((current) => ({
+        ...current,
+        [selectedContactId]: [
+          ...(current[selectedContactId] || []),
+          {
+            id: Date.now(),
+            sender: 'me',
+            text,
+            time: 'Now',
+          },
+        ],
+      }));
+      setDraftMessage('');
+    } catch (error) {
+      console.error('Unable to send message', error);
+      alert('Your message could not be saved. Please try again.');
+    }
   };
 
   const appendAttachment = (attachment: ChatMessage['attachment']) => {
@@ -216,7 +259,6 @@ export default function Messages() {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       appendAttachment({ type: 'image', url, name: 'photo.jpg' });
-      // close camera
       if (videoStream) {
         videoStream.getTracks().forEach((t) => t.stop());
         setVideoStream(null);

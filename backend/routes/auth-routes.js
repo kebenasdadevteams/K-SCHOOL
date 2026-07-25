@@ -1,6 +1,17 @@
+// routes/auth-routes.js
 const express = require('express');
 const { body } = require('express-validator');
-const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, updatePreferences } = require('../controllers/auth-controller');
+const { 
+  signup, 
+  login, 
+  googleAuth, 
+  getMe, 
+  forgotPassword, 
+  resetPassword, 
+  updateProfile, 
+  changePassword, 
+  updatePreferences 
+} = require('../controllers/auth-controller');
 const { authenticate } = require('../middleware/auth-middleware');
 
 const router = express.Router();
@@ -28,6 +39,18 @@ router.post(
     body('password').notEmpty().withMessage('Password is required'),
   ],
   login
+);
+
+// POST /api/v1/auth/google - Google Authentication
+router.post(
+  '/google',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('full_name').optional().trim(),
+    body('googleId').optional().trim(),
+    body('avatar').optional().trim(),
+  ],
+  googleAuth
 );
 
 // GET /api/v1/auth/me

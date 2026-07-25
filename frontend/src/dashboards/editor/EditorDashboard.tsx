@@ -72,7 +72,7 @@ const Overview: React.FC = () => {
     published: 0,
     drafts: 0,
     pendingReview: 0,
-    totalViews: 0
+    totalViews: 0,
   });
   const [recentContent, setRecentContent] = useState<RecentContent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,82 +84,97 @@ const Overview: React.FC = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+
     try {
-      // Fetch all content types - using the same API calls as before
-      const [postsRes, eventsRes, podcastsRes, programsRes, quotesRes] = await Promise.all([
-        api.get('/content/posts'),
+      const [contentRes, eventsRes, programsRes, quotesRes] = await Promise.all([
+        api.get('/content/all'),
         api.get('/editor/events'),
-        api.get('/content/podcasts'),
         api.get('/editor/programs'),
-        api.get('/content/quotes')
+        api.get('/editor/quotes'),
       ]);
 
-      const posts = postsRes.data.data || [];
-      const events = eventsRes.data.data || [];
-      const podcasts = podcastsRes.data.data || [];
-      const programs = programsRes.data.data || [];
-      const quotes = quotesRes.data.data || [];
+      const allContent = (contentRes.data.data || []) as any[];
+      const events = (eventsRes.data.data || []) as any[];
+      const programs = (programsRes.data.data || []) as any[];
+      const quotes = (quotesRes.data.data || []) as any[];
 
-      const published = posts.filter((p: any) => p.status === 'published').length;
-      const drafts = posts.filter((p: any) => p.status === 'draft').length;
-      const pendingReview = posts.filter((p: any) => p.status === 'pending').length;
-      const totalViews = posts.reduce((sum: number, p: any) => sum + (p.views || 0), 0);
+      const published = allContent.filter((item: any) => item.status === 'published').length;
+      const drafts = allContent.filter((item: any) => item.status === 'draft').length;
+      const pendingReview = allContent.filter((item: any) => item.status === 'pending').length;
+      const totalViews = allContent.reduce((sum: number, item: any) => sum + Number(item.views || 0), 0);
 
       setStats({
-        posts: posts.length,
+        posts: allContent.filter((item: any) => item.type === 'post').length,
         events: events.length,
-        podcasts: podcasts.length,
+        podcasts: allContent.filter((item: any) => item.type === 'podcast').length,
         programs: programs.length,
         quotes: quotes.length,
         published,
         drafts,
         pendingReview,
-        totalViews
+        totalViews,
       });
 
-      // Recent content
-      const allContent: RecentContent[] = [
-        ...posts.map((p: any) => ({ ...p, type: 'post' as const })),
-        ...events.map((e: any) => ({ ...e, type: 'event' as const })),
-        ...podcasts.map((p: any) => ({ ...p, type: 'podcast' as const })),
-        ...programs.map((p: any) => ({ ...p, type: 'program' as const })),
-        ...quotes.map((q: any) => ({ ...q, type: 'quote' as const }))
+      const recentItems: RecentContent[] = [
+        ...allContent.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          status: item.status || 'published',
+          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+          views: Number(item.views || 0),
+          likes: Number(item.likes || 0),
+          comments: Number(item.comments || 0),
+        })),
+        ...events.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          type: 'event' as const,
+          status: item.status || 'published',
+          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+          views: 0,
+          likes: 0,
+          comments: 0,
+        })),
+        ...programs.map((item: any) => ({
+          id: item.id,
+          title: item.name_en || item.name_am || 'Program',
+          type: 'program' as const,
+          status: item.is_active ? 'published' : 'draft',
+          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+          views: 0,
+          likes: 0,
+          comments: 0,
+        })),
+        ...quotes.map((item: any) => ({
+          id: item.id,
+          title: item.text_en || item.reference || 'Quote',
+          type: 'quote' as const,
+          status: 'published',
+          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+          views: 0,
+          likes: 0,
+          comments: 0,
+        })),
       ]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5)
-      .map(item => ({
-        id: item.id,
-        title: item.title,
-        type: item.type,
-        status: item.status || 'published',
-        date: new Date(item.created_at).toLocaleDateString(),
-        views: item.views || Math.floor(Math.random() * 500),
-        likes: item.likes || Math.floor(Math.random() * 50),
-        comments: item.comments || Math.floor(Math.random() * 20)
-      }));
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5);
 
-      setRecentContent(allContent);
+      setRecentContent(recentItems);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      // Fallback mock data
       setStats({
-        posts: 12,
-        events: 5,
-        podcasts: 8,
-        programs: 3,
-        quotes: 15,
-        published: 28,
-        drafts: 7,
-        pendingReview: 4,
-        totalViews: 2847
+        posts: 0,
+        events: 0,
+        podcasts: 0,
+        programs: 0,
+        quotes: 0,
+        published: 0,
+        drafts: 0,
+        pendingReview: 0,
+        totalViews: 0,
       });
-      setRecentContent([
-        { id: 1, title: 'Sunday Sermon: Walking in Faith', type: 'post', status: 'published', date: '2026-02-16', views: 342, likes: 45, comments: 12 },
-        { id: 2, title: 'Weekly Youth Service', type: 'event', status: 'published', date: '2026-02-15', views: 215, likes: 28, comments: 8 },
-        { id: 3, title: 'Interview with Pastor John', type: 'podcast', status: 'draft', date: '2026-02-14', views: 0, likes: 0, comments: 0 },
-        { id: 4, title: 'Leadership Training Program', type: 'program', status: 'pending', date: '2026-02-13', views: 0, likes: 0, comments: 0 },
-        { id: 5, title: 'Daily Devotional: Trust in God', type: 'quote', status: 'published', date: '2026-02-12', views: 156, likes: 32, comments: 5 },
-      ]);
+      setRecentContent([]);
     } finally {
       setLoading(false);
     }

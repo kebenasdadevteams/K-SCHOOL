@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { SidebarLayout } from '../components/SidebarLayout';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import StudentSettings from '../student/Settings';
 import { 
   Users, 
   FileText, 
@@ -708,52 +709,7 @@ const PastorProfile: React.FC = () => (
   </div>
 );
 
-const PastorSettings: React.FC = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-3xl font-bold">Settings</h1>
-      <p className="text-muted-foreground">Configure notifications, calendar reminders, and service preferences.</p>
-    </div>
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>Control how you receive alerts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Email updates</span>
-              <Badge variant="outline">On</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Service reminders</span>
-              <Badge variant="outline">On</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>Profile preferences</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Two-factor auth</span>
-              <Badge variant="secondary">Off</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Weekly digest</span>
-              <Badge variant="outline">On</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
+const PastorSettings: React.FC = () => <StudentSettings />;
 
 // Main Pastor Dashboard Component
 const PastorDashboard: React.FC = () => {

@@ -1,3 +1,4 @@
+// controllers/auth-controller.js
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
@@ -16,16 +17,13 @@ const signup = async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    // Check if email exists
     const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ?', [normalizedEmail]);
     if (existing.length > 0) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Hash password
     const password_hash = await bcrypt.hash(password, 12);
 
-    // Insert user
     const [result] = await pool.query(
       'INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)',
       [full_name, normalizedEmail, password_hash]
@@ -33,7 +31,6 @@ const signup = async (req, res) => {
 
     const userId = result.insertId;
 
-    // Assign default role: student
     const [studentRole] = await pool.query('SELECT id FROM roles WHERE name = ?', ['student']);
     if (studentRole.length > 0) {
       await pool.query('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, studentRole[0].id]);
@@ -60,21 +57,33 @@ const login = async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    // Find user
-    const [users] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [normalizedEmail]);
+    const [users] = await pool.query(
+      'SELECT id, full_name, email, password_hash, is_google_user, avatar FROM users WHERE LOWER(email) = ?',
+      [normalizedEmail]
+    );
     if (users.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     const user = users[0];
+    const storedPasswordHash = user.password_hash || null;
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (user.is_google_user && !storedPasswordHash) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'This account uses Google Sign-In. Please sign in with Google.' 
+      });
+    }
+
+    if (!storedPasswordHash) {
+      return res.status(401).json({ success: false, message: 'No password set for this account' });
+    }
+
+    const isMatch = await bcrypt.compare(password, storedPasswordHash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    // Load roles
     const [roleRows] = await pool.query(
       `SELECT r.name FROM roles r
        JOIN user_roles ur ON ur.role_id = r.id
@@ -83,8 +92,6 @@ const login = async (req, res) => {
     );
 
     const roles = roleRows.map((r) => r.name);
-
-    // Generate token
     const token = generateToken({ id: user.id, email: user.email, roles });
 
     return res.status(200).json({
@@ -97,6 +104,8 @@ const login = async (req, res) => {
           full_name: user.full_name,
           email: user.email,
           roles,
+          avatar: user.avatar || null,
+          is_google_user: user.is_google_user || false,
         },
       },
     });
@@ -106,10 +115,158 @@ const login = async (req, res) => {
   }
 };
 
+// POST /api/v1/auth/google - Google Authentication
+const googleAuth = async (req, res) => {
+  try {
+    console.log('📝 Google Auth Request received');
+    console.log('📝 Body:', req.body);
+    
+    const { email, full_name, avatar, googleId } = req.body;
+    
+    if (!email) {
+      console.log('❌ Email missing');
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for Google authentication'
+      });
+    }
+    
+    const userEmail = email.toLowerCase();
+    const userName = full_name || userEmail.split('@')[0];
+    const userAvatar = avatar || null;
+    const userGoogleId = googleId || 'google_' + Date.now();
+    
+    console.log('📝 Processing user:', userEmail, 'Name:', userName);
+    console.log('📝 Google ID:', userGoogleId);
+    
+    // Check if user exists by email
+    let [users] = await pool.query('SELECT * FROM users WHERE email = ?', [userEmail]);
+    
+    let userId;
+    let userRoles = ['student'];
+    
+    if (users.length === 0) {
+      console.log('📝 Creating new user');
+      
+      // Insert with all columns (they exist in church_cms database)
+      const [result] = await pool.query(
+        `INSERT INTO users 
+          (full_name, email, google_id, avatar, is_google_user, email_verified) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [userName, userEmail, userGoogleId, userAvatar, 1, 1]
+      );
+      userId = result.insertId;
+      console.log('✅ User created with ID:', userId);
+      
+      // Assign default role: student
+      const [studentRole] = await pool.query('SELECT id FROM roles WHERE name = ?', ['student']);
+      if (studentRole.length > 0) {
+        await pool.query('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, studentRole[0].id]);
+        console.log('✅ Student role assigned');
+      }
+    } else {
+      userId = users[0].id;
+      console.log('📝 Existing user found with ID:', userId);
+      
+      // Update user info if needed
+      const updates = [];
+      const updateValues = [];
+      
+      if (!users[0].google_id) {
+        updates.push('google_id = ?');
+        updateValues.push(userGoogleId);
+      }
+      
+      if (!users[0].is_google_user) {
+        updates.push('is_google_user = ?');
+        updateValues.push(1);
+      }
+      
+      if (!users[0].avatar && userAvatar) {
+        updates.push('avatar = ?');
+        updateValues.push(userAvatar);
+      }
+      
+      if (!users[0].email_verified) {
+        updates.push('email_verified = ?');
+        updateValues.push(1);
+      }
+      
+      if (updates.length > 0) {
+        updateValues.push(userId);
+        await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, updateValues);
+        console.log('✅ User info updated');
+      }
+      
+      // Get existing roles
+      const [roleRows] = await pool.query(
+        `SELECT r.name FROM roles r 
+         JOIN user_roles ur ON ur.role_id = r.id 
+         WHERE ur.user_id = ?`,
+        [userId]
+      );
+      userRoles = roleRows.length > 0 ? roleRows.map((r) => r.name) : ['student'];
+      console.log('📝 User roles:', userRoles);
+    }
+    
+    // Generate JWT token
+    const token = generateToken({ 
+      id: userId, 
+      email: userEmail, 
+      roles: userRoles 
+    });
+    console.log('✅ JWT token generated');
+    
+    // Get fresh user data
+    const [freshUsers] = await pool.query(
+      'SELECT id, full_name, email, avatar, is_google_user FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (freshUsers.length === 0) {
+      console.error('❌ User not found after creation');
+      return res.status(500).json({
+        success: false,
+        message: 'User could not be retrieved after authentication'
+      });
+    }
+    
+    const userData = freshUsers[0];
+    
+    console.log('✅ Google auth successful for:', userEmail);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Google authentication successful',
+      data: {
+        token,
+        user: {
+          id: userData.id,
+          full_name: userData.full_name,
+          email: userData.email,
+          roles: userRoles,
+          avatar: userData.avatar || null,
+          is_google_user: userData.is_google_user || false,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('❌ Google auth error:', err);
+    console.error('❌ Stack:', err.stack);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Google authentication failed: ' + err.message 
+    });
+  }
+};
+
 // GET /api/v1/auth/me
 const getMe = async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, full_name, email, created_at FROM users WHERE id = ?', [req.user.id]);
+    const [users] = await pool.query(
+      'SELECT id, full_name, email, avatar, phone_number, is_google_user, email_verified, theme, language, font_size, created_at, updated_at FROM users WHERE id = ?', 
+      [req.user.id]
+    );
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -126,7 +283,11 @@ const getMe = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'User fetched successfully',
-      data: { ...users[0], roles },
+      data: { 
+        ...users[0], 
+        roles,
+        is_google_user: users[0].is_google_user || false,
+      },
     });
   } catch (err) {
     console.error('GetMe error:', err);
@@ -140,21 +301,25 @@ const forgotPassword = async (req, res) => {
   if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
   try {
-    const [users] = await pool.query('SELECT id, full_name, email FROM users WHERE email = ?', [email]);
+    const [users] = await pool.query('SELECT id, full_name, email, is_google_user FROM users WHERE email = ?', [email]);
 
-    // Always return success to prevent email enumeration
     if (users.length === 0) {
       return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     }
 
     const user = users[0];
+
+    if (user.is_google_user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Google users cannot reset password. Please use Google Sign-In.' 
+      });
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Invalidate old tokens
     await pool.query('DELETE FROM password_reset_tokens WHERE user_id = ?', [user.id]);
-
-    // Store new token
     await pool.query(
       'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
       [user.id, token, expiresAt]
@@ -206,7 +371,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// PUT /api/v1/auth/profile - Update user profile (name, email, phone, profile_picture)
+// PUT /api/v1/auth/profile
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -214,9 +379,8 @@ const updateProfile = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const { full_name, email, phone_number, profile_picture } = req.body;
+    const { full_name, email, phone_number, avatar } = req.body;
 
-    // Check if new email is already taken by another user
     if (email) {
       const [existing] = await pool.query(
         'SELECT id FROM users WHERE email = ? AND id != ?',
@@ -227,7 +391,6 @@ const updateProfile = async (req, res) => {
       }
     }
 
-    // Update user profile
     const updateFields = [];
     const updateValues = [];
 
@@ -243,9 +406,9 @@ const updateProfile = async (req, res) => {
       updateFields.push('phone_number = ?');
       updateValues.push(phone_number);
     }
-    if (profile_picture) {
-      updateFields.push('profile_picture = ?');
-      updateValues.push(profile_picture);
+    if (avatar) {
+      updateFields.push('avatar = ?');
+      updateValues.push(avatar);
     }
 
     if (updateFields.length === 0) {
@@ -255,8 +418,7 @@ const updateProfile = async (req, res) => {
     updateValues.push(userId);
     await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
 
-    // Fetch updated user
-    const [users] = await pool.query('SELECT id, full_name, email, phone_number, profile_picture FROM users WHERE id = ?', [userId]);
+    const [users] = await pool.query('SELECT id, full_name, email, phone_number, avatar FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -272,7 +434,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// PUT /api/v1/auth/change-password - Change user password
+// PUT /api/v1/auth/change-password
 const changePassword = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -294,21 +456,26 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Passwords do not match' });
     }
 
-    // Fetch user and verify current password
-    const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [userId]);
+    const [users] = await pool.query('SELECT password_hash, is_google_user FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const isMatch = await bcrypt.compare(current_password, users[0].password_hash);
+    const storedPasswordHash = users[0].password_hash || null;
+
+    if (users[0].is_google_user && !storedPasswordHash) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Google users cannot change password. Please use Google Sign-In.' 
+      });
+    }
+
+    const isMatch = storedPasswordHash ? await bcrypt.compare(current_password, storedPasswordHash) : false;
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    // Hash new password
     const new_password_hash = await bcrypt.hash(new_password, 12);
-
-    // Update password
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [new_password_hash, userId]);
 
     return res.status(200).json({
@@ -321,7 +488,7 @@ const changePassword = async (req, res) => {
   }
 };
 
-// PUT /api/v1/auth/preferences - Update user preferences (theme, language, font_size)
+// PUT /api/v1/auth/preferences
 const updatePreferences = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -354,7 +521,6 @@ const updatePreferences = async (req, res) => {
     updateValues.push(userId);
     await pool.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
 
-    // Fetch updated preferences
     const [users] = await pool.query('SELECT theme, language, font_size FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -371,4 +537,14 @@ const updatePreferences = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, updatePreferences };
+module.exports = { 
+  signup, 
+  login, 
+  googleAuth,
+  getMe, 
+  forgotPassword, 
+  resetPassword, 
+  updateProfile, 
+  changePassword, 
+  updatePreferences 
+};

@@ -43,51 +43,6 @@ CREATE TABLE IF NOT EXISTS user_roles (
   FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
 
--- Demo Admin Account
-INSERT IGNORE INTO users (full_name, email, password_hash) VALUES
-  ('Admin User', 'admin@kebenasdachurch.org', '$2a$12$duZbf2RAlHrEfSt2GPK6ZOlhQIkqVxB7mIqjmVWE7IVslbws5PGpq'),
-  ('Pastor User', 'pastor@kebenasdachurch.org', '$2a$12$LEQq.uBjtBjubHbKM5PgCOvNg5ee9Q5IHUHAeTuOBMSK1W3EqwaLm'),
-  ('Editor User', 'editor@kebenasdachurch.org', '$2a$12$EOQ6GSEFZVTc3GAlvja4SOnODFyhzoc6itJwZkX5oAvHCZsOpEAve'),
-  ('Teacher User', 'teacher@kebenasdachurch.org', '$2a$12$FL6ohOknsajFwS0AevCnAOult5yE8U7ZUQvNadx/pK3TRDodB2KyG'),
-  ('Developer User', 'developer@kebenasdachurch.org', '$2a$12$JQT7jCVQDv1ayX/wUuZaxOtHjYJK2Yvet0D0LGOiQTf8HZKOmMetW'),
-  ('Student User', 'student@kebenasdachurch.org', '$2a$12$.ftABpIhk3cCMoGynP8QCuNHqNpHLldq3t4vhdYuJ8SyFrIqK91Ja');
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name IN ('admin', 'student')
-  WHERE u.email = 'Admin@kebenasdachurch.org';
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name IN ('pastor', 'student')
-  WHERE u.email = 'Pastor@kebenasdachurch.org';
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name IN ('editor', 'student')
-  WHERE u.email = 'Editor@kebenasdachurch.org';
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name IN ('teacher', 'student')
-  WHERE u.email = 'Teacher@kebenasdachurch.org';
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name IN ('developer', 'student')
-  WHERE u.email = 'Developer@kebenasdachurch.org';
-
-INSERT IGNORE INTO user_roles (user_id, role_id)
-  SELECT u.id, r.id
-  FROM users u
-  JOIN roles r ON r.name = 'student'
-  WHERE u.email = 'Student@kebenasdachurch.org';
-
 -- ── COURSES ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS courses (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -95,7 +50,15 @@ CREATE TABLE IF NOT EXISTS courses (
   description TEXT,
   category VARCHAR(100),
   teacher_id INT,
-  status ENUM('draft', 'published', 'archived') DEFAULT 'draft',
+  status ENUM('draft', 'submitted', 'approved', 'published', 'archived') DEFAULT 'draft',
+  image_url VARCHAR(500),
+  level VARCHAR(50) DEFAULT 'beginner',
+  language VARCHAR(50) DEFAULT 'English',
+  tags JSON,
+  prerequisites JSON,
+  objectives JSON,
+  materials JSON,
+  sections JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL

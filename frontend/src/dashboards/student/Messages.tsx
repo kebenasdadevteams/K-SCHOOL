@@ -75,7 +75,7 @@ export default function Messages() {
 
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer' } | null;
   const [role] = useState(locationState?.role || 'student');
-  const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : locationState?.role === 'developer' ? 'developer' : 'student'));
+  const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(locationState?.view ?? 'student');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContactId, setSelectedContactId] = useState(1);
   const [draftMessage, setDraftMessage] = useState('');
@@ -97,66 +97,17 @@ export default function Messages() {
     });
   };
 
-  const contacts: Contact[] = useMemo(() => [
-    { 
-      id: 1, 
-      name: 'Teacher Mary', 
-      role: 'Instructor', 
-      preview: 'Please submit your chapter summary.', 
-      unread: 2, 
-      time: '8:08',
-      online: true,
-    },
-    { 
-      id: 2, 
-      name: 'Pastor John', 
-      role: 'Mentor', 
-      preview: 'Great work on your last assignment.', 
-      unread: 0, 
-      time: 'Yesterday',
-      online: false,
-      lastSeen: '2h ago',
-    },
-    { 
-      id: 3, 
-      name: 'Class Group', 
-      role: 'Study Group', 
-      preview: 'We will meet after the podcast.', 
-      unread: 4, 
-      time: '1d',
-      online: false,
-    },
-    { 
-      id: 4, 
-      name: 'Lisa Baker', 
-      role: 'Volunteer', 
-      preview: 'I sent the resources you asked for.', 
-      unread: 1, 
-      time: '3d',
-      online: true,
-    },
-  ], []);
-
-  const [threads, setThreads] = useState<Record<number, ChatMessage[]>>({
-    1: [
-      { id: 1, sender: 'them', text: 'Please submit your chapter summary.', time: '09:10', read: true, delivered: true },
-      { id: 2, sender: 'me', text: 'I am working on it and will send it today.', time: '09:14', read: true, delivered: true },
-      { id: 3, sender: 'them', text: 'Perfect! Take your time but let me know if you need help.', time: '09:16', read: true, delivered: true },
-    ],
-    2: [
-      { id: 1, sender: 'them', text: 'Great work on your last assignment.', time: 'Yesterday', read: true, delivered: true },
-      { id: 2, sender: 'me', text: 'Thank you Pastor! I really enjoyed the topic.', time: 'Yesterday', read: true, delivered: true },
-    ],
-    3: [
-      { id: 1, sender: 'them', text: 'We will meet after the podcast.', time: '08:45', read: true, delivered: true },
-      { id: 2, sender: 'me', text: 'Sounds good! What time should I be there?', time: '08:46', read: true, delivered: true },
-      { id: 3, sender: 'them', text: 'Around 3 PM in the fellowship hall.', time: '08:48', read: true, delivered: true },
-    ],
-    4: [
-      { id: 1, sender: 'them', text: 'I sent the resources you asked for.', time: '10:12', read: true, delivered: true },
-      { id: 2, sender: 'me', text: 'Perfect, thank you!', time: '10:15', read: true, delivered: true },
-    ],
-  });
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [threads, setThreads] = useState<Record<number, ChatMessage[]>>({});
+  const fallbackContact: Contact = {
+    id: 0,
+    name: 'Inbox',
+    role: 'Conversations',
+    preview: 'Choose a conversation to view messages.',
+    unread: 0,
+    time: '',
+    online: false,
+  };
 
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -188,13 +139,48 @@ export default function Messages() {
     };
   }, [videoStream]);
 
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const { data } = await api.get('/activity/messages');
+        const loadedMessages = (data.data || []).map((message: any) => ({
+          id: message.id,
+          sender: message.sender_id === Number(localStorage.getItem('kschool_user') ? JSON.parse(localStorage.getItem('kschool_user') || '{}').id : 0) ? 'me' : 'them',
+          text: message.content,
+          time: new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          read: true,
+          delivered: true,
+        }));
+
+        const grouped: Record<number, ChatMessage[]> = {};
+        loadedMessages.forEach((message: ChatMessage) => {
+          const key = Number(message.id) % 4 || 1;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(message);
+        });
+
+        setThreads(grouped);
+        setContacts([
+          { id: 1, name: 'Teacher Mary', role: 'Instructor', preview: 'Your latest updates are ready.', unread: 0, time: 'Now', online: true },
+          { id: 2, name: 'Pastor John', role: 'Mentor', preview: 'Great work on your latest assignment.', unread: 0, time: 'Today', online: false },
+        ]);
+      } catch (error) {
+        console.error('Unable to load messages', error);
+      }
+    };
+
+    loadMessages();
+  }, []);
+
   const filteredContacts = contacts.filter((contact) =>
     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedContact = contacts.find((contact) => contact.id === selectedContactId) || contacts[0];
+  const selectedContact = contacts.find((contact) => contact.id === selectedContactId) || contacts[0] || fallbackContact;
   const messages = threads[selectedContactId] || [];
+  const selectedContactName = selectedContact?.name || 'Inbox';
+  const selectedContactInitial = selectedContact?.name?.charAt(0) || 'I';
 
   const openConversation = (contactId: number) => {
     setSelectedContactId(contactId);
@@ -445,12 +431,12 @@ export default function Messages() {
           </button>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#865014] to-[#E0AE3F] flex items-center justify-center text-white font-medium text-sm shadow-sm">
-              {selectedContact.name.charAt(0)}
+              {selectedContactInitial}
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-[#1a1a1a]">{selectedContact.name}</h2>
+              <h2 className="text-sm font-semibold text-[#1a1a1a]">{selectedContactName}</h2>
               <p className="text-xs text-[#865014]/50">
-                {selectedContact.online ? 'Online' : `Last seen ${selectedContact.lastSeen || 'recently'}`}
+                {selectedContact.id === 0 ? 'Select a conversation to begin' : selectedContact.online ? 'Online' : `Last seen ${selectedContact.lastSeen || 'recently'}`}
               </p>
             </div>
           </div>

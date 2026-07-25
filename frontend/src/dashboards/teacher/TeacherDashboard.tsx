@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { SidebarLayout } from '../components/SidebarLayout';
 import api from '../../services/api';
+import { teacherService } from '../../services/teacher-service';
 import { useAuth } from '../../contexts/AuthContext';
 import ManageCourses from './ManageCourses';
+import Assignments from './Assignments';
 import Messages from './Messages';
 import Notifications from './Notifications';
 import Profile from './Profile';
@@ -13,18 +15,8 @@ import {
   Users, 
   FileText, 
   ChevronRight,
-  BarChart3,
-  Clock,
-  CheckCircle2,
   TrendingUp,
-  Award,
   Calendar,
-  Headphones,
-  BookMarked,
-  ListTodo,
-  Settings,
-  PanelTop,
-  LayoutDashboard,
   UserPlus
 } from 'lucide-react';
 
@@ -35,56 +27,65 @@ import { Progress } from '../../components/ui/progress';
 import { Badge } from '../../components/ui/badge';
 
 // Teacher-specific data based on the images
-const teacherStats = {
-  totalStudents: 45,
-  activeCourses: 3,
-  pendingReviews: 12,
-  completionRate: 78,
+const teacherStatsInitial = {
+  totalStudents: 0,
+  activeCourses: 0,
+  pendingReviews: 0,
+  completionRate: 0,
 };
 
-const myCourses = [
-  {
-    id: 1,
-    title: 'Introduction to Biblical Studies',
-    chapters: 12,
-    enrolledStudents: 22,
-    progress: 65,
-  },
-  {
-    id: 2,
-    title: 'Amharic Bible Study',
-    chapters: 10,
-    enrolledStudents: 27,
-    progress: 40,
-  },
-  {
-    id: 3,
-    title: 'Christian Leadership Principles',
-    chapters: 8,
-    enrolledStudents: 26,
-    progress: 20,
-  },
-];
-
-const pendingAssignments = [
-  {
-    id: 1,
-    title: 'Chapter 4 Assignment: Old Testament Analysis',
-    course: 'Biblical Studies',
-    submissions: 8,
-  },
-  {
-    id: 2,
-    title: 'Leadership Essay Submission',
-    course: 'Christian Leadership',
-    submissions: 9,
-  },
-];
+const pendingAssignmentsInitial: Array<{ id: number; title: string; course: string; submissions: number; dueDate?: string }> = [];
+const activityInitial: Array<{ student: string; action: string; course: string; time: string }> = [];
 
 // Teacher Overview Component
 const TeacherOverview: React.FC = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState(teacherStatsInitial);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [pendingAssignments, setPendingAssignments] = useState<any[]>(pendingAssignmentsInitial);
+  const [activity, setActivity] = useState(activityInitial);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOverview = async () => {
+      try {
+        setLoading(true);
+        const [statsResp, coursesResp, assignmentsResp, submissionsResp] = await Promise.all([
+          teacherService.getStats(),
+          api.get('/courses'),
+          teacherService.getAssignments(),
+          teacherService.getSubmissions(),
+        ]);
+
+        if (!mounted) return;
+
+        setStats(statsResp.data.data || teacherStatsInitial);
+        setCourses(coursesResp.data.data || []);
+        setPendingAssignments((assignmentsResp.data.data || []).slice(0, 3).map((assignment: any) => ({
+          ...assignment,
+          dueDate: assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : undefined,
+        })));
+        setActivity((submissionsResp.data.data || []).slice(0, 3).map((submission: any) => ({
+          student: submission.student_name,
+          action: submission.status === 'pending' ? 'submitted assignment' : 'received grade',
+          course: submission.course,
+          time: submission.submittedAt ? new Date(submission.submittedAt).toLocaleTimeString() : 'just now',
+        })));
+      } catch (error) {
+        console.error('Failed to load teacher overview', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadOverview();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -110,7 +111,7 @@ const TeacherOverview: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{teacherStats.totalStudents}</div>
+            <div className="text-3xl font-bold">{stats.totalStudents}</div>
             <p className="text-xs text-muted-foreground mt-1">Across all courses</p>
           </CardContent>
         </Card>
@@ -125,7 +126,7 @@ const TeacherOverview: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{teacherStats.activeCourses}</div>
+            <div className="text-3xl font-bold">{stats.activeCourses}</div>
             <p className="text-xs text-muted-foreground mt-1">Currently teaching</p>
           </CardContent>
         </Card>
@@ -140,7 +141,7 @@ const TeacherOverview: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{teacherStats.pendingReviews}</div>
+            <div className="text-3xl font-bold">{stats.pendingReviews}</div>
             <p className="text-xs text-muted-foreground mt-1">Assignments to grade</p>
           </CardContent>
         </Card>
@@ -155,8 +156,8 @@ const TeacherOverview: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{teacherStats.completionRate}%</div>
-            <Progress value={teacherStats.completionRate} className="mt-2" />
+            <div className="text-3xl font-bold">{stats.completionRate}%</div>
+            <Progress value={stats.completionRate} className="mt-2" />
           </CardContent>
         </Card>
       </div>
@@ -170,32 +171,47 @@ const TeacherOverview: React.FC = () => {
             <CardDescription>Courses you manage</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {myCourses.map((course) => (
-              <div 
-                key={course.id} 
-                className="p-4 bg-muted rounded-lg hover:bg-muted/80 transition-colors cursor-pointer"
-                onClick={() => navigate(`/teacher/courses/${course.id}`)}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-bold">{course.title}</h4>
-                  <Badge variant="secondary">{course.chapters} chapters</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {course.enrolledStudents} enrolled students
-                </p>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/teacher/courses/${course.id}/manage`);
-                  }}
+            {(courses.length > 0 ? courses : []).map((course: any) => {
+              const chapterCount = course.sections?.reduce((sum: number, section: any) => sum + (section.chapters?.length || 0), 0) || course.lessons?.length || 0;
+              return (
+                <div 
+                  key={course.id} 
+                  className="p-4 bg-muted rounded-lg hover:bg-muted/80 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/teacher/courses/${course.id}`)}
                 >
-                  Manage Course
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">{course.title}</h4>
+                    <Badge variant="secondary">{chapterCount} chapters</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {course.students || 0} enrolled students
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/teacher/courses/${course.id}/manage`);
+                    }}
+                  >
+                    Manage Course
+                  </Button>
+                </div>
+              );
+            })}
+            {courses.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No courses yet</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => navigate('/teacher/courses/new')}
+                >
+                  Create Your First Course
                 </Button>
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
 
@@ -206,7 +222,7 @@ const TeacherOverview: React.FC = () => {
             <CardDescription>Assignments waiting for review</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {pendingAssignments.map((assignment) => (
+            {pendingAssignments.map((assignment: any) => (
               <div key={assignment.id} className="p-3 bg-muted rounded-lg">
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -227,6 +243,11 @@ const TeacherOverview: React.FC = () => {
                 </Button>
               </div>
             ))}
+            {pendingAssignments.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No pending assignments</p>
+              </div>
+            )}
             <Button
               variant="outline"
               className="w-full"
@@ -246,11 +267,7 @@ const TeacherOverview: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
-              { student: 'Abebe Kebede', action: 'submitted assignment', course: 'Old Testament Analysis', time: '2 hours ago' },
-              { student: 'Tigist Alemayehu', action: 'completed course', course: 'Biblical Studies', time: '5 hours ago' },
-              { student: 'Dawit Tesfaye', action: 'enrolled in', course: 'Christian Leadership', time: '1 day ago' },
-            ].map((activity, index) => (
+            {activity.length > 0 ? activity.map((activityItem, index) => (
               <div 
                 key={index} 
                 className="flex items-center justify-between py-3 border-b border-border last:border-0"
@@ -261,14 +278,18 @@ const TeacherOverview: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      {activity.student} <span className="font-normal text-muted-foreground">{activity.action}</span>
+                      {activityItem.student} <span className="font-normal text-muted-foreground">{activityItem.action}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">{activity.course}</p>
+                    <p className="text-xs text-muted-foreground">{activityItem.course}</p>
                   </div>
                 </div>
-                <span className="text-xs text-muted-foreground">{activity.time}</span>
+                <span className="text-xs text-muted-foreground">{activityItem.time}</span>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No recent activity</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -280,12 +301,29 @@ const TeacherOverview: React.FC = () => {
 const CoursesManagement: React.FC = () => {
   const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/courses')
-      .then(r => setCourses(r.data.data || []))
-      .catch(() => {});
+    let mounted = true;
+
+    const loadCourses = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get('/courses');
+        if (!mounted) return;
+        setCourses(data.data || []);
+      } catch (error) {
+        console.error('Failed to fetch teacher courses', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadCourses();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
@@ -302,7 +340,7 @@ const CoursesManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {myCourses.map((course) => (
+        {courses.map((course: any) => (
           <Card key={course.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="text-lg">{course.title}</CardTitle>
@@ -312,7 +350,7 @@ const CoursesManagement: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Students</span>
-                  <span className="font-medium">{course.enrolledStudents}</span>
+                  <span className="font-medium">{course.enrolledStudents ?? course.students ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Progress</span>
@@ -339,14 +377,36 @@ const CoursesManagement: React.FC = () => {
 // Students Management Component
 const StudentsManagement: React.FC = () => {
   const navigate = useNavigate();
-  
-  // Mock student data
-  const students = [
-    { id: 1, name: 'Abebe Kebede', email: 'abebe@example.com', courses: 2, progress: 78 },
-    { id: 2, name: 'Tigist Alemayehu', email: 'tigist@example.com', courses: 3, progress: 92 },
-    { id: 3, name: 'Dawit Tesfaye', email: 'dawit@example.com', courses: 1, progress: 45 },
-    { id: 4, name: 'Meron Hailu', email: 'meron@example.com', courses: 2, progress: 63 },
-  ];
+  const [students, setStudents] = useState<Array<{ id: number; name: string; email: string; courses: number; progress: number }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadStudents = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teacherService.getStudents();
+        if (!mounted) return;
+        setStudents((data.data || []).map((student: any) => ({
+          id: student.id,
+          name: student.full_name,
+          email: student.email,
+          courses: student.courses || 0,
+          progress: student.progress || 0,
+        })));
+      } catch (error) {
+        console.error('Failed to fetch teacher students', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadStudents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -402,68 +462,51 @@ const StudentsManagement: React.FC = () => {
   );
 };
 
-// Assignments Management Component
-const AssignmentsManagement: React.FC = () => {
-  const navigate = useNavigate();
-  
-  const assignments = [
-    { id: 1, title: 'Chapter 4 Assignment: Old Testament Analysis', course: 'Biblical Studies', submissions: 8, dueDate: 'Feb 18, 2026' },
-    { id: 2, title: 'Leadership Essay Submission', course: 'Christian Leadership', submissions: 9, dueDate: 'Feb 20, 2026' },
-    { id: 3, title: 'Amharic Bible Study Reflection', course: 'Amharic Bible Study', submissions: 5, dueDate: 'Feb 22, 2026' },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Assignments</h1>
-          <p className="text-muted-foreground">Manage and review student assignments</p>
-        </div>
-        <Button>
-          <FileText className="h-4 w-4 mr-2" />
-          Create Assignment
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        {assignments.map((assignment) => (
-          <Card key={assignment.id}>
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-bold">{assignment.title}</h4>
-                  <p className="text-sm text-muted-foreground">{assignment.course}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <Badge variant="secondary">{assignment.submissions} submissions</Badge>
-                    <span className="text-xs text-muted-foreground">Due: {assignment.dueDate}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/submissions/${assignment.id}`)}>
-                    Review Submissions
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // Submissions Review Component
 const SubmissionsReview: React.FC = () => {
   const navigate = useNavigate();
-  
-  const submissions = [
-    { id: 1, student: 'Abebe Kebede', assignment: 'Chapter 4 Assignment: Old Testament Analysis', course: 'Biblical Studies', submitted: 'Today, 8:15 AM', status: 'pending' },
-    { id: 2, student: 'Tigist Alemayehu', assignment: 'Leadership Essay Submission', course: 'Christian Leadership', submitted: 'Today, 10:30 AM', status: 'graded' },
-    { id: 3, student: 'Dawit Tesfaye', assignment: 'Amharic Bible Study Reflection', course: 'Amharic Bible Study', submitted: 'Today, 11:05 AM', status: 'pending' },
-  ];
+  const [submissions, setSubmissions] = useState<Array<{
+    id: number;
+    student: string;
+    studentId: number;
+    assignment: string;
+    course: string;
+    submitted: string;
+    status: string;
+    grade?: number;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSubmissions = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teacherService.getSubmissions();
+        if (!mounted) return;
+        setSubmissions((data.data || []).map((submission: any) => ({
+          id: submission.id,
+          student: submission.student_name,
+          studentId: submission.student_id,
+          assignment: submission.assignment_title,
+          course: submission.course,
+          submitted: submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : '',
+          status: submission.status,
+          grade: submission.grade,
+        })));
+      } catch (error) {
+        console.error('Failed to fetch submissions', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadSubmissions();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -508,7 +551,6 @@ const SubmissionsReview: React.FC = () => {
 // Main Teacher Dashboard Component
 const TeacherDashboard: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <SidebarLayout
@@ -518,12 +560,12 @@ const TeacherDashboard: React.FC = () => {
     >
       <Routes>
         <Route index element={<TeacherOverview />} />
-        <Route path="courses" element={<CoursesManagement />} />
-        <Route path="courses/:id" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Course Details</h1><div className="card"><p>Course management page</p></div></div>} />
-        <Route path="courses/:id/manage" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Manage Course</h1><div className="card"><p>Course management tools</p></div></div>} />
-        <Route path="courses/new" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Create Course</h1><div className="card"><p>Course creation form</p></div></div>} />
+        <Route path="courses" element={<ManageCourses />} />
+        <Route path="courses/new" element={<ManageCourses mode="create" />} />
+        <Route path="courses/:id" element={<ManageCourses />} />
+        <Route path="courses/:id/manage" element={<ManageCourses />} />
         <Route path="lessons" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Lessons</h1><div className="card"><p className="text-muted-foreground mb-4">Select a course to manage its lessons.</p></div></div>} />
-        <Route path="assignments" element={<AssignmentsManagement />} />
+        <Route path="assignments" element={<Assignments />} />
         <Route path="submissions" element={<SubmissionsReview />} />
         <Route path="submissions/:id" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Submission Details</h1><div className="card"><p>Review submission</p></div></div>} />
         <Route path="submissions/:id/review" element={<div className="space-y-4"><h1 className="text-2xl font-bold">Review Submission</h1><div className="card"><p>Grade and provide feedback</p></div></div>} />

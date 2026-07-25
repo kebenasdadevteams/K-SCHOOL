@@ -12,7 +12,7 @@ export default function Notifications() {
   const location = useLocation();
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer' } | null;
 
-  const [notifications, setNotifications] = useState<Array<{id:number; title:string; message:string; type:string; created_at:string}>>([]);
+  const [notifications, setNotifications] = useState<Array<{id:number; title:string; message:string; type:string; created_at:string; is_read?:boolean}>>([]);
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -33,7 +33,7 @@ export default function Notifications() {
   };
 
   const role = locationState?.role || 'student';
-  const activeView = locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : locationState?.role === 'developer' ? 'developer' : 'student');
+  const activeView = locationState?.view ?? 'student';
 
   const navigateWithState = (path: string) => {
     navigate(path, {
@@ -77,7 +77,7 @@ export default function Notifications() {
                 <CardTitle>Recent notifications</CardTitle>
                 <CardDescription>Important updates for the student dashboard</CardDescription>
               </div>
-              <Badge variant="secondary">4 new</Badge>
+              <Badge variant="secondary">{notifications.filter((item) => !item.is_read).length} new</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">

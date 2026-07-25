@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
@@ -70,6 +71,15 @@ export function SidebarLayout({
   const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [sidebarCounts, setSidebarCounts] = useState({
+    content: 0,
+    podcasts: 0,
+    users: 0,
+    courses: 0,
+    assignments: 0,
+    messages: 0,
+    notifications: 0,
+  });
 
   const actualUserName = authUser?.full_name || userName || 'Demo User';
   const actualUserEmail = authUser?.email || userEmail || 'demo@church.com';
@@ -110,7 +120,7 @@ export function SidebarLayout({
   const activeView = externalActiveView !== undefined ? externalActiveView : internalActiveView;
 
   const handleViewChange = (view: ActiveView) => {
-    const nextRole = view === 'admin' || view === 'editor' || view === 'developer' ? view : userRole;
+    const nextRole = view === 'student' ? 'student' : view;
     setInternalActiveView(view);
     onViewChange?.(view);
     localStorage.setItem('kschool_last_role', view);
@@ -149,6 +159,91 @@ export function SidebarLayout({
   }, [location.pathname]);
 
   useEffect(() => {
+    const loadSidebarCounts = async () => {
+      try {
+        const shouldLoadContent = ['admin', 'editor', 'teacher', 'pastor', 'developer'].includes(activeView);
+        const shouldLoadUsers = activeView === 'admin';
+        const shouldLoadStudentActivity = activeView === 'student';
+        const shouldLoadTeacherCourses = activeView === 'teacher';
+
+        const requests = [
+          api.get('/activity/messages'),
+          api.get('/activity/notifications'),
+        ];
+
+        if (shouldLoadContent) {
+          requests.push(api.get('/content/all'));
+          requests.push(api.get('/content/podcasts'));
+        }
+
+        if (shouldLoadUsers) {
+          requests.push(api.get('/users'));
+        }
+
+        if (shouldLoadStudentActivity) {
+          requests.push(api.get('/activity/enrollments'));
+          requests.push(api.get('/activity/assignments'));
+        }
+
+        if (shouldLoadTeacherCourses) {
+          requests.push(api.get('/courses'));
+        }
+
+        const results = await Promise.allSettled(requests);
+        let index = 0;
+
+        const messagesResult = results[index++];
+        const notificationsResult = results[index++];
+
+        const messages = messagesResult.status === 'fulfilled' ? messagesResult.value.data?.data || [] : [];
+        const notifications = notificationsResult.status === 'fulfilled' ? notificationsResult.value.data?.data || [] : [];
+
+        const counts: Record<string, number> = {
+          content: sidebarCounts.content,
+          podcasts: sidebarCounts.podcasts,
+          users: sidebarCounts.users,
+          courses: sidebarCounts.courses,
+          assignments: sidebarCounts.assignments,
+          messages: messages.length,
+          notifications: notifications.filter((item: any) => !item.is_read).length,
+        };
+
+        if (shouldLoadContent) {
+          const contentResult = results[index++];
+          const podcastsResult = results[index++];
+          counts.content = contentResult.status === 'fulfilled' ? contentResult.value.data?.data?.length || 0 : 0;
+          counts.podcasts = podcastsResult.status === 'fulfilled' ? podcastsResult.value.data?.data?.length || 0 : 0;
+        }
+
+        if (shouldLoadUsers) {
+          const usersResult = results[index++];
+          counts.users = usersResult.status === 'fulfilled' ? usersResult.value.data?.data?.length || 0 : 0;
+        }
+
+        if (shouldLoadStudentActivity) {
+          const enrollmentsResult = results[index++];
+          const assignmentsResult = results[index++];
+          const enrollments = enrollmentsResult.status === 'fulfilled' ? enrollmentsResult.value.data?.data || [] : [];
+          const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value.data?.data || [] : [];
+          counts.courses = enrollments.length;
+          counts.assignments = assignments.filter((item: any) => item.status !== 'graded').length;
+        }
+
+        if (shouldLoadTeacherCourses) {
+          const teacherCoursesResult = results[index++];
+          counts.courses = teacherCoursesResult.status === 'fulfilled' ? teacherCoursesResult.value.data?.data?.length || 0 : 0;
+        }
+
+        setSidebarCounts((prev) => ({ ...prev, ...counts }));
+      } catch (error) {
+        console.error('Unable to load sidebar counts', error);
+      }
+    };
+
+    loadSidebarCounts();
+  }, [activeView]);
+
+  useEffect(() => {
     const syncProfile = () => setProfile(readProfile());
 
     syncProfile();
@@ -161,15 +256,23 @@ export function SidebarLayout({
     };
   }, [settingsKey, userEmail, userName]);
 
-  const canSwitchRole = userRole === 'teacher' || userRole === 'pastor' || userRole === 'editor' || userRole === 'admin' || userRole === 'developer';
+  const userRoles = Array.isArray(authUser?.roles)
+    ? authUser.roles.map((role: string) => String(role).trim().toLowerCase())
+    : [];
+  const canSwitchRole = userRoles.some((role) => ['teacher', 'pastor', 'editor', 'admin', 'developer'].includes(role))
+    || userRole === 'teacher'
+    || userRole === 'pastor'
+    || userRole === 'editor'
+    || userRole === 'admin'
+    || userRole === 'developer';
 
   const roleOptions: Array<{ view: ActiveView; label: string; icon: React.ComponentType<any> }> = [
     { view: 'student', label: 'Student View', icon: UserCircle },
-    ...(userRole === 'teacher' ? [{ view: 'teacher', label: 'Teacher View', icon: GraduationCap }] : []),
-    ...(userRole === 'pastor' ? [{ view: 'pastor', label: 'Pastor View', icon: Church }] : []),
-    ...(userRole === 'editor' ? [{ view: 'editor', label: 'Editor View', icon: FileText }] : []),
-    ...(userRole === 'admin' ? [{ view: 'admin', label: 'Admin View', icon: Shield }] : []),
-    ...(userRole === 'developer' ? [{ view: 'developer', label: 'Developer View', icon: Shield }] : []),
+    ...(userRoles.includes('teacher') ? [{ view: 'teacher', label: 'Teacher View', icon: GraduationCap }] : []),
+    ...(userRoles.includes('pastor') ? [{ view: 'pastor', label: 'Pastor View', icon: Church }] : []),
+    ...(userRoles.includes('editor') ? [{ view: 'editor', label: 'Editor View', icon: FileText }] : []),
+    ...(userRoles.includes('admin') ? [{ view: 'admin', label: 'Admin View', icon: Shield }] : []),
+    ...(userRoles.includes('developer') ? [{ view: 'developer', label: 'Developer View', icon: Shield }] : []),
   ];
 
   const currentRoleOption = roleOptions.find((option) => option.view === activeView) ?? roleOptions[0];
@@ -191,14 +294,14 @@ export function SidebarLayout({
           icon: FolderOpen, 
           path: '/admin/content',
           description: 'Manage content',
-          badge: '12'
+          badge: String(sidebarCounts.content)
         },
         { 
           label: 'Podcasts', 
           icon: Radio, 
           path: '/admin/podcasts',
           description: 'Audio episodes',
-          badge: '5'
+          badge: String(sidebarCounts.podcasts)
         },
         { 
           label: 'Messages', 
@@ -217,7 +320,7 @@ export function SidebarLayout({
           icon: Users, 
           path: '/admin/users',
           description: 'Manage accounts',
-          badge: '9'
+          badge: String(sidebarCounts.users)
         },
         { 
           label: 'Analytics', 
@@ -239,11 +342,11 @@ export function SidebarLayout({
     if (canSwitchRole && activeView === 'student') {
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/student', description: 'Your overview' },
-        { label: 'My Courses', icon: BookOpen, path: '/student/courses', badge: '3', description: 'Learning progress' },
+        { label: 'My Courses', icon: BookOpen, path: '/student/courses', badge: String(sidebarCounts.courses), description: 'Learning progress' },
         { label: 'Podcasts', icon: Radio, path: '/student/podcasts', description: 'Audio content' },
-        { label: 'Assignments', icon: Calendar, path: '/student/assignments', badge: '2', description: 'Tasks & deadlines' },
-        { label: 'Messages', icon: Mail, path: '/student/messages', description: 'Communications' },
-        { label: 'Notifications', icon: Bell, path: '/student/notifications', description: 'Updates & alerts' },
+        { label: 'Assignments', icon: Calendar, path: '/student/assignments', badge: String(sidebarCounts.assignments), description: 'Tasks & deadlines' },
+        { label: 'Messages', icon: Mail, path: '/student/messages', badge: String(sidebarCounts.messages), description: 'Communications' },
+        { label: 'Notifications', icon: Bell, path: '/student/notifications', badge: String(sidebarCounts.notifications), description: 'Updates & alerts' },
         { label: 'Settings', icon: Cog, path: '/student/settings', description: 'Preferences' },
       ];
     }
@@ -252,8 +355,8 @@ export function SidebarLayout({
     if (userRole === 'teacher' && activeView === 'teacher') {
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/teacher', description: 'Teaching overview' },
-        { label: 'Manage Courses', icon: BookOpen, path: '/teacher/courses', badge: '4', description: 'Your classes' },
-        { label: 'Assignments', icon: Calendar, path: '/teacher/assignments', badge: '12', description: 'Student submissions' },
+        { label: 'Manage Courses', icon: BookOpen, path: '/teacher/courses', badge: String(sidebarCounts.courses), description: 'Your classes' },
+        { label: 'Assignments', icon: Calendar, path: '/teacher/assignments', badge: String(sidebarCounts.assignments), description: 'Student submissions' },
         { label: 'Students', icon: UserPlus, path: '/teacher/students', description: 'Class roster' },
         { label: 'Settings', icon: Cog, path: '/teacher/settings', description: 'Preferences' },
       ];
@@ -263,8 +366,8 @@ export function SidebarLayout({
     if (userRole === 'editor' && activeView === 'editor') {
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/editor', description: 'Content overview' },
-        { label: 'Content', icon: FolderOpen, path: '/editor/content', badge: '8', description: 'Write & edit' },
-        { label: 'Podcasts', icon: Radio, path: '/editor/podcasts', badge: '3', description: 'Audio production' },
+        { label: 'Content', icon: FolderOpen, path: '/editor/content', badge: String(sidebarCounts.content), description: 'Write & edit' },
+        { label: 'Podcasts', icon: Radio, path: '/editor/podcasts', badge: String(sidebarCounts.podcasts), description: 'Audio production' },
         { label: 'Messages', icon: Mail, path: '/editor/messages', description: 'Team communications' },
         { label: 'Notifications', icon: Bell, path: '/editor/notifications', description: 'Updates & alerts' },
         { label: 'Promotions', icon: Megaphone, path: '/editor/promotions', description: 'Campaigns' },
@@ -276,7 +379,7 @@ export function SidebarLayout({
     if (userRole === 'developer' && activeView === 'developer') {
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/developer', description: 'System health' },
-        { label: 'Users', icon: Users, path: '/developer/users', badge: '9', description: 'Manage accounts' },
+        { label: 'Users', icon: Users, path: '/developer/users', badge: String(sidebarCounts.users), description: 'Manage accounts' },
         { label: 'Content', icon: FolderOpen, path: '/developer/content', description: 'Data management' },
         { label: 'Messages', icon: Mail, path: '/developer/messages', description: 'Team communications' },
         { label: 'Analytics', icon: TrendingUp, path: '/developer/analytics', description: 'Platform metrics' },
@@ -288,7 +391,7 @@ export function SidebarLayout({
     if (userRole === 'pastor' && activeView === 'pastor') {
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/pastor', description: 'Ministry overview' },
-        { label: 'Members', icon: Users, path: '/pastor/users', badge: '156', description: 'Congregation' },
+        { label: 'Members', icon: Users, path: '/pastor/users', badge: String(sidebarCounts.users), description: 'Congregation' },
         { label: 'Church Management', icon: FolderOpen, path: '/pastor/content', description: 'Ministry resources' },
         { label: 'Podcasts', icon: Radio, path: '/pastor/podcasts', badge: '7', description: 'Sermons & messages' },
         { label: 'Events', icon: Gift, path: '/pastor/promotions', description: 'Church calendar' },
@@ -300,11 +403,11 @@ export function SidebarLayout({
     // Default student view
     return [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/student', description: 'Your overview' },
-      { label: 'My Courses', icon: BookOpen, path: '/student/courses', badge: '3', description: 'Learning progress' },
+      { label: 'My Courses', icon: BookOpen, path: '/student/courses', badge: String(sidebarCounts.courses), description: 'Learning progress' },
       { label: 'Podcasts', icon: Radio, path: '/student/podcasts', description: 'Audio content' },
-      { label: 'Assignments', icon: Calendar, path: '/student/assignments', badge: '2', description: 'Tasks & deadlines' },
-      { label: 'Messages', icon: Mail, path: '/student/messages', description: 'Communications' },
-      { label: 'Notifications', icon: Bell, path: '/student/notifications', description: 'Updates & alerts' },
+      { label: 'Assignments', icon: Calendar, path: '/student/assignments', badge: String(sidebarCounts.assignments), description: 'Tasks & deadlines' },
+      { label: 'Messages', icon: Mail, path: '/student/messages', badge: String(sidebarCounts.messages), description: 'Communications' },
+      { label: 'Notifications', icon: Bell, path: '/student/notifications', badge: String(sidebarCounts.notifications), description: 'Updates & alerts' },
       { label: 'Settings', icon: Cog, path: '/student/settings', description: 'Preferences' },
     ];
   };
@@ -329,7 +432,7 @@ export function SidebarLayout({
       const viewPath = `/${activeView}`;
       finalPath = path.startsWith(viewPath) ? path : `${viewPath}${path.startsWith('/') ? path : `/${path}`}`;
     }
-    
+
     navigate(finalPath, {
       state: {
         ...((location.state as Record<string, unknown>) || {}),
@@ -601,6 +704,7 @@ export function SidebarLayout({
             {/* Right side */}
             <div className="flex items-center gap-3">
               <Button 
+                type="button"
                 variant="ghost" 
                 size="icon" 
                 className="relative text-slate-600 hover:bg-slate-100" 
@@ -609,11 +713,12 @@ export function SidebarLayout({
               >
                 <Mail className="h-4.5 w-4.5" />
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white shadow-lg shadow-rose-500/30">
-                  3
+                  {sidebarCounts.messages}
                 </span>
               </Button>
 
               <Button 
+                type="button"
                 variant="ghost" 
                 size="icon" 
                 className="relative text-slate-600 hover:bg-slate-100" 
@@ -622,7 +727,7 @@ export function SidebarLayout({
               >
                 <Bell className="h-4.5 w-4.5" />
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white shadow-lg shadow-rose-500/30">
-                  7
+                  {sidebarCounts.notifications}
                 </span>
               </Button>
 

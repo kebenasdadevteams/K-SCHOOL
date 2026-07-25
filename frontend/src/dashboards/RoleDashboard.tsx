@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Progress } from '../components/ui/progress';
@@ -46,6 +47,51 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
   const [activeView, setActiveView] = useState<ActiveView>(
     (locationState.view as ActiveView) ?? (locationState.role === 'teacher' ? 'teacher' : (locationState.role === 'pastor' ? 'pastor' : (locationState.role === 'editor' ? 'editor' : (locationState.role === 'admin' ? 'admin' : (locationState.role === 'developer' ? 'developer' : 'student')))))
   );
+  const [adminCounts, setAdminCounts] = useState({
+    totalUsers: 0,
+    pendingCourses: 0,
+    contentItems: 0,
+    systemAlerts: 0,
+  });
+  const [pendingApprovals, setPendingApprovals] = useState<Array<{ id: number; title: string; teacher_name?: string; category?: string }>>([]);
+
+  useEffect(() => {
+    const loadAdminCounts = async () => {
+      if (role !== 'admin') return;
+
+      const [usersResult, coursesResult, contentResult, notificationsResult] = await Promise.allSettled([
+        api.get('/users'),
+        api.get('/courses'),
+        api.get('/content/all'),
+        api.get('/activity/notifications'),
+      ]);
+
+      const users = usersResult.status === 'fulfilled' ? usersResult.value.data?.data || [] : [];
+      const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data?.data || [] : [];
+      const content = contentResult.status === 'fulfilled' ? contentResult.value.data?.data || [] : [];
+      const notifications = notificationsResult.status === 'fulfilled' ? notificationsResult.value.data?.data || [] : [];
+
+      const submittedCourses = courses.filter((course: any) => String(course.status || '').toLowerCase() === 'submitted');
+      const unreadAlerts = notifications.filter((item: any) => !item.is_read).length;
+
+      setAdminCounts({
+        totalUsers: users.length,
+        pendingCourses: submittedCourses.length,
+        contentItems: content.length,
+        systemAlerts: unreadAlerts,
+      });
+      setPendingApprovals(
+        submittedCourses.map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          teacher_name: course.teacher_name || 'Teacher',
+          category: course.category || 'General',
+        }))
+      );
+    };
+
+    loadAdminCounts();
+  }, [role]);
 
   // Shared mock data
   const studentStats = {
@@ -86,7 +132,6 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
   ];
 
   const pastorStats = { pendingApprovals: 2, podcastDrafts: 1, announcements: 1, reach: '1.2k' };
-  const adminStats = { totalUsers: 9, pendingCourses: 3, contentItems: 4, systemAlerts: 2 };
   const developerStats = { totalUsers: 9, debugTickets: 4, systemHealth: 'Live', activeSites: 1 };
 
   // Helper function to navigate with proper paths
@@ -131,7 +176,7 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
     navigate(`/${view}`, { 
       state: { 
         ...(location.state as Record<string, unknown> || {}), 
-        role: view === 'student' ? role : view, 
+        role: view === 'student' ? 'student' : view, 
         view 
       } 
     });
@@ -147,7 +192,7 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Total Users</CardDescription>
-                <CardTitle className="text-3xl">{adminStats.totalUsers}</CardTitle>
+                <CardTitle className="text-3xl">{adminCounts.totalUsers}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">All active platform accounts</p>
@@ -156,7 +201,7 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Courses Pending Approval</CardDescription>
-                <CardTitle className="text-3xl">{adminStats.pendingCourses}</CardTitle>
+                <CardTitle className="text-3xl">{adminCounts.pendingCourses}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">Submitted by teachers</p>
@@ -165,7 +210,7 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Content Items</CardDescription>
-                <CardTitle className="text-3xl">{adminStats.contentItems}</CardTitle>
+                <CardTitle className="text-3xl">{adminCounts.contentItems}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">Managed posts and podcasts</p>
@@ -174,7 +219,7 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>System Alerts</CardDescription>
-                <CardTitle className="text-3xl">{adminStats.systemAlerts}</CardTitle>
+                <CardTitle className="text-3xl">{adminCounts.systemAlerts}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">Items needing attention</p>
@@ -210,12 +255,16 @@ export default function RoleDashboard({ defaultRole }: RoleDashboardProps) {
                 <CardDescription>Teacher-created courses awaiting approval</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[{ title: 'Christian Ethics 101', teacher: 'Teacher Mary' }, { title: 'Biblical Leadership', teacher: 'Pastor John' }, { title: 'Amharic Devotional Study', teacher: 'Teacher Dawit' }].map((course) => (
-                  <div key={course.title} className="rounded-lg border p-3">
-                    <p className="font-medium">{course.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Submitted by {course.teacher}</p>
-                  </div>
-                ))}
+                {pendingApprovals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No courses are waiting for approval.</p>
+                ) : (
+                  pendingApprovals.map((course) => (
+                    <div key={course.id} className="rounded-lg border p-3">
+                      <p className="font-medium">{course.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Submitted by {course.teacher_name}</p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

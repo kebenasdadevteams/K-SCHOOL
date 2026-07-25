@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
+import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -12,6 +13,9 @@ import { Headphones, PlayCircle, Pause, Plus, ExternalLink, Calendar, Clock, Tre
 export default function Podcasts() {
   const location = useLocation();
   const [playing, setPlaying] = useState<number | null>(null);
+  const [podcasts, setPodcasts] = useState<any[]>([]);
+  const [episodes, setEpisodes] = useState<any[]>([]);
+  const [loadingPodcasts, setLoadingPodcasts] = useState(true);
 
   // Get user info from navigation state, or use defaults
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
@@ -24,113 +28,54 @@ export default function Podcasts() {
     locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : 'admin')
   );
 
-  // Mock data based on database schema (podcasts, episodes, podcast_metadata)
-  const podcasts = [
-    {
-      id: 1,
-      title: 'Sunday Sermons',
-      description: 'Weekly inspirational messages from our Sunday worship services',
-      thumbnail: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc678?w=400&h=300&fit=crop',
-      author: 'Pastor John',
-      rss_url: 'https://spotify.com/rss/sunday-sermons',
-      source_platform: 'spotify',
-      is_automated: true,
-      total_episodes: 48,
-      last_synced_at: '2026-02-15 08:00:00',
-    },
-    {
-      id: 2,
-      title: 'Daily Devotionals - የዕለት ጸሎት',
-      description: 'Short daily messages for spiritual growth in Amharic and English',
-      thumbnail: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?w=400&h=300&fit=crop',
-      author: 'Pastor Michael',
-      rss_url: 'https://spotify.com/rss/daily-devotionals',
-      source_platform: 'spotify',
-      is_automated: true,
-      total_episodes: 120,
-      last_synced_at: '2026-02-15 06:00:00',
-    },
-    {
-      id: 3,
-      title: 'Bible Study Podcast',
-      description: 'In-depth biblical teaching and verse-by-verse analysis',
-      thumbnail: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?w=400&h=300&fit=crop',
-      author: 'Teacher Mary',
-      rss_url: null,
-      source_platform: null,
-      is_automated: false,
-      total_episodes: 32,
-      last_synced_at: null,
-    },
-  ];
+  useEffect(() => {
+    const loadPodcasts = async () => {
+      setLoadingPodcasts(true);
+      try {
+        const { data } = await api.get('/content/podcasts');
+        const rows = data.data || [];
+        const mappedPodcasts = rows.map((podcast: any) => ({
+          id: podcast.id,
+          title: podcast.title,
+          description: podcast.description || 'No description available.',
+          thumbnail: podcast.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc678?w=400&h=300&fit=crop',
+          author: podcast.author_name || 'K-School Team',
+          rss_url: podcast.audio_url || null,
+          source_platform: podcast.source_platform || null,
+          is_automated: Boolean(podcast.audio_url),
+          total_episodes: podcast.total_episodes || 1,
+          last_synced_at: podcast.created_at || null,
+        }));
 
-  const episodes = [
-    {
-      id: 1,
-      podcast_id: 1,
-      title: 'Walking in Faith - A Journey of Trust',
-      description: 'Explore what it means to walk by faith and not by sight in our daily lives',
-      episode_number: 48,
-      audio_url: 'https://example.com/audio/episode-48.mp3',
-      duration: 2700, // seconds
-      publish_status: 'published',
-      published_at: '2026-02-14',
-      podcast_title: 'Sunday Sermons',
-      podcast_thumbnail: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc678?w=200&h=200&fit=crop',
-    },
-    {
-      id: 2,
-      podcast_id: 2,
-      title: 'የቀን መልእክት - ጸሎትን ማስቀደም',
-      description: 'ስለ ጸሎት አስፈላጊነት እና በጸሎት ላይ ምን ያህል ጊዜ ማስቀደም እንዳለብን',
-      episode_number: 120,
-      audio_url: 'https://example.com/audio/episode-120.mp3',
-      duration: 900,
-      publish_status: 'published',
-      published_at: '2026-02-15',
-      podcast_title: 'Daily Devotionals',
-      podcast_thumbnail: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?w=200&h=200&fit=crop',
-    },
-    {
-      id: 3,
-      podcast_id: 1,
-      title: 'The Power of Prayer in Difficult Times',
-      description: 'Understanding how prayer sustains us through life\'s challenges',
-      episode_number: 47,
-      audio_url: 'https://example.com/audio/episode-47.mp3',
-      duration: 2400,
-      publish_status: 'published',
-      published_at: '2026-02-11',
-      podcast_title: 'Sunday Sermons',
-      podcast_thumbnail: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc678?w=200&h=200&fit=crop',
-    },
-    {
-      id: 4,
-      podcast_id: 3,
-      title: 'Genesis Chapter 1: In the Beginning',
-      description: 'Deep dive into the creation story and its theological significance',
-      episode_number: 1,
-      audio_url: 'https://example.com/audio/episode-genesis-1.mp3',
-      duration: 3600,
-      publish_status: 'published',
-      published_at: '2026-02-10',
-      podcast_title: 'Bible Study Podcast',
-      podcast_thumbnail: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?w=200&h=200&fit=crop',
-    },
-    {
-      id: 5,
-      podcast_id: 2,
-      title: 'የቀን መልእክት - እምነት እና ተስፋ',
-      description: 'እምነትና ተስፋ በህይወታችን ውስጥ ስላላቸው ሚና አጭር ትምህርት',
-      episode_number: 119,
-      audio_url: 'https://example.com/audio/episode-119.mp3',
-      duration: 900,
-      publish_status: 'published',
-      published_at: '2026-02-14',
-      podcast_title: 'Daily Devotionals',
-      podcast_thumbnail: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?w=200&h=200&fit=crop',
-    },
-  ];
+        setPodcasts(mappedPodcasts);
+        setEpisodes(mappedPodcasts.map((podcast: any, index: number) => ({
+          id: podcast.id * 100 + index,
+          podcast_id: podcast.id,
+          title: podcast.title,
+          description: podcast.description,
+          episode_number: index + 1,
+          audio_url: podcast.rss_url,
+          duration: 1800,
+          publish_status: 'published',
+          published_at: podcast.last_synced_at,
+          podcast_title: podcast.title,
+          podcast_thumbnail: podcast.thumbnail,
+          plays: 0,
+          likes: 0,
+        })));
+      } catch (error) {
+        console.error('Unable to load podcasts', error);
+        setPodcasts([]);
+        setEpisodes([]);
+      } finally {
+        setLoadingPodcasts(false);
+      }
+    };
+    loadPodcasts();
+  }, []);
+
+  const podcastsToRender = loadingPodcasts ? [] : podcasts;
+  const episodesToRender = loadingPodcasts ? [] : episodes;
 
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
