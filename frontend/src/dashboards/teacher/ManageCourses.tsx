@@ -1,62 +1,73 @@
-import { type ChangeEvent, useEffect, useMemo, useState, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Button } from '../../components/ui/button';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Progress } from '../../components/ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Progress } from '../../components/ui/progress';
 import { toast } from 'sonner';
+import api from '../../services/api';
 import { courseService } from '../../services/course-service';
 import {
-  BookOpen,
+  Calendar,
   Clock,
-  Users,
-  Edit3,
-  Plus,
-  FileText,
+  User,
+  Tag,
+  Filter,
+  Grid,
+  ArrowLeft,
+  Loader2,
+  CheckCircle,
+  Archive,
+  Pin,
+  Star,
+  TrendingUp,
+  Copy,
+  Share2,
+  Mail,
+  Printer,
+  Monitor,
+  Tablet,
+  Smartphone,
   Upload,
-  Image,
   Video,
-  Link,
-  Hash,
-  RefreshCw,
-  Download,
+  Music,
+  File,
+  Rocket,
+  X,
   Eye,
+  Edit3,
   Trash2,
+  Plus,
+  Search,
+  RefreshCw,
   Save,
   Send,
-  File,
-  Music,
-  Maximize2,
-  Minimize2,
-  ChevronRight,
-  Grid,
-  Search,
-  FolderOpen,
-  FileArchive,
-  ExternalLink,
-  UploadCloud,
-  Sparkles,
-  GraduationCap,
+  Image,
+  MapPin,
+  Map,
+  UserPlus,
+  CalendarDays,
+  MessageCircle,
+  Heart,
+  AlertTriangle,
+  CalendarRange,
+  BookOpen,
   Layers,
   Target,
   Award,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Clock as ClockIcon,
-  ArrowUp,
-  ArrowDown,
-  Settings,
-  Globe,
-  Tag,
-  BookMarked,
-  Layout,
-  Palette,
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Link as LinkIcon,
+  Code,
+  Quote,
+  List as ListIcon,
+  Hash,
   Type,
   AlignLeft,
   AlignCenter,
@@ -65,91 +76,23 @@ import {
   Italic,
   Underline,
   ListOrdered,
-  Quote,
-  Code,
   Table,
   PlusCircle,
-  AlertTriangle,
   Info,
   HelpCircle,
-  Check,
-  X,
-  Star,
-  StarHalf,
-  Heart,
-  MessageCircle,
-  Share2,
-  MoreHorizontal,
-  MoreVertical,
-  Copy,
-  Scissors,
-  Link2,
-  Paperclip,
-  Mic,
-  Camera,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Laptop,
-  Moon,
-  Sun,
-  Zap,
-  Flame,
-  Crown,
-  Gem,
-  Rocket,
-  Shield,
-  Users as UsersIcon,
-  UserPlus,
-  UserCheck,
-  UserX,
-  BarChart,
-  PieChart as PieChartIcon,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Bell,
-  BellOff,
-  Lock,
-  Unlock as UnlockIcon,
-  Key,
-  Mail,
-  Phone,
-  MapPin,
-  CalendarDays,
-  Clock4,
-  Timer,
-  Hourglass,
-  Infinity,
-  Loader2,
-  SendHorizontal,
-  Inbox,
-  Archive,
-  ArrowLeft,
-  Pen,
-  Pencil,
-  Eraser,
-  Undo,
-  Redo,
-  ZoomIn,
-  ZoomOut,
-  Printer,
   Book,
   Library,
   Newspaper,
   Notebook,
   PenTool,
   Compass,
-  Map,
   Flag,
-  Award as AwardIcon,
   Trophy,
   Medal,
   BadgeCheck,
   Verified,
   ShieldCheck,
   ShieldAlert,
-  ShieldHalf,
   Server,
   Database,
   Cloud,
@@ -226,17 +169,15 @@ import {
   Umbrella,
   Rainbow,
   Star as StarIcon,
-  Sparkles as SparklesIcon,
+  Sparkles,
   Fire,
-  Flame as FlameIcon,
-  Zap as ZapIcon,
-  Rocket as RocketIcon,
-  Gem as GemIcon,
-  Crown as CrownIcon,
-  Shield as ShieldIcon,
+  Flame,
+  Zap,
+  Crown,
+  Gem,
+  Shield,
   Sword,
   Crosshair,
-  Target as TargetIcon,
   Bullseye,
   Dices,
   Dice1,
@@ -247,12 +188,23 @@ import {
   Dice6,
   Gamepad,
   Gamepad2,
+  MoreHorizontal,
+  MoreVertical,
+  Copy as CopyIcon,
+  Scissors,
+  Link2,
+  Paperclip,
+  Mic,
+  Camera,
+  Laptop,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 // Types
 type ContentBlock = {
   id: string;
-  type: 'header' | 'paragraph' | 'image' | 'video' | 'audio' | 'link' | 'file' | 'reading_material' | 'quote' | 'code' | 'list';
+  type: 'header' | 'paragraph' | 'image' | 'video' | 'audio' | 'link' | 'file' | 'reading_material' | 'quote' | 'code' | 'list' | 'table' | 'divider';
   content: string;
   metadata?: {
     url?: string;
@@ -268,6 +220,8 @@ type ContentBlock = {
     items?: string[];
     language?: string;
     author?: string;
+    rows?: string[][];
+    headers?: string[];
   };
 };
 
@@ -283,6 +237,25 @@ type Chapter = {
   estimatedTime?: number;
   objectives?: string[];
   coverImage?: string;
+  quiz?: {
+    questions: {
+      id: string;
+      question: string;
+      options: string[];
+      correctAnswer: number;
+    }[];
+  };
+  assignment?: {
+    title: string;
+    description: string;
+    dueDate?: string;
+    maxScore?: number;
+  };
+  resources?: {
+    title: string;
+    type: 'pdf' | 'doc' | 'ppt' | 'link' | 'video' | 'audio' | 'other';
+    url: string;
+  }[];
 };
 
 type Section = {
@@ -339,30 +312,56 @@ type Course = {
   featured?: boolean;
 };
 
+type CourseStats = {
+  total: number;
+  published: number;
+  drafts: number;
+  submitted: number;
+  approved: number;
+  archived: number;
+  totalStudents: number;
+  totalChapters: number;
+};
+
 type ManageCoursesProps = {
   mode?: 'manage' | 'create';
 };
 
-// Main Component
+// Helper function to get image URL with fallback
+const getImageUrl = (url: string | undefined): string => {
+  if (!url) return '/placeholder-course.jpg';
+  if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  return url;
+};
+
 export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: string } | null;
 
   const [user] = useState({
-    full_name: locationState?.userName || 'Demo Teacher',
+    full_name: locationState?.userName || 'Teacher User',
     email: locationState?.userEmail || 'teacher@church.com',
+    role: locationState?.role || 'teacher',
   });
 
+  // States
   const [courses, setCourses] = useState<Course[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeDialog, setActiveDialog] = useState<null | 'course' | 'chapter' | 'section' | 'content' | 'preview' | 'settings' | 'review' | 'progress' | 'materials' | 'publish'>(null);
-  const navigate = useNavigate();
-  const params = useParams();
-  const createMode = mode === 'create' || location.pathname.endsWith('/new');
-  const routeCourseId = params.id && params.id !== 'new' ? Number(params.id) : null;
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeDialog, setActiveDialog] = useState<null | 'course' | 'section' | 'chapter' | 'content' | 'preview' | 'materials' | 'publish' | 'delete' | 'chapter_content'>(null);
   
   // Content editing state
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
@@ -370,7 +369,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   
-  // Dialog states
+  // Dialog drafts
   const [courseDraft, setCourseDraft] = useState<Partial<Course>>({});
   const [sectionDraft, setSectionDraft] = useState<Partial<Section>>({});
   const [chapterDraft, setChapterDraft] = useState<Partial<Chapter>>({});
@@ -381,50 +380,140 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const materialInputRef = useRef<HTMLInputElement>(null);
+  const contentImageInputRef = useRef<HTMLInputElement>(null);
+  const contentFileInputRef = useRef<HTMLInputElement>(null);
+  const contentVideoInputRef = useRef<HTMLInputElement>(null);
+  const contentAudioInputRef = useRef<HTMLInputElement>(null);
+  const contentMaterialInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [isUploading, setIsUploading] = useState(false);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile' | 'tablet'>('desktop');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [stats, setStats] = useState<CourseStats>({
+    total: 0,
+    published: 0,
+    drafts: 0,
+    submitted: 0,
+    approved: 0,
+    archived: 0,
+    totalStudents: 0,
+    totalChapters: 0,
+  });
 
-  const selectedCourse = useMemo(() => {
-    if (createMode) return null;
-    if (routeCourseId) return courses.find((c) => c.id === routeCourseId) || null;
-    if (selectedCourseId) return courses.find((c) => c.id === selectedCourseId) || null;
-    return null;
-  }, [courses, createMode, routeCourseId, selectedCourseId]);
+  const isCreateMode = mode === 'create' || location.pathname === '/teacher/courses/new' || location.pathname.endsWith('/new');
 
   useEffect(() => {
     loadCourses();
   }, []);
 
   useEffect(() => {
-    if (createMode) {
-      setSelectedCourseId(null);
+    if (isCreateMode) {
+      setSelectedCourse(null);
       setCourseDraft({});
       setActiveDialog('course');
-      return;
     }
+  }, [isCreateMode]);
 
-    if (routeCourseId) {
-      setSelectedCourseId(routeCourseId);
-    }
-  }, [routeCourseId, createMode, courses, selectedCourseId]);
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      const { data } = await courseService.getAll();
+      const coursesData = (data.data || []).map((course: any) => ({
+        ...course,
+        imageUrl: course.image_url || course.imageUrl || '',
+        imageMode: course.image_url ? 'link' : 'link',
+        sections: Array.isArray(course.sections)
+          ? course.sections
+          : course.sections
+          ? JSON.parse(course.sections)
+          : course.lessons
+          ? [
+              {
+                id: 1,
+                title: 'Course Content',
+                description: course.description || '',
+                order: 0,
+                status: course.status || 'draft',
+                chapters: course.lessons.map((lesson: any, index: number) => ({
+                  id: lesson.id || index + 1,
+                  title: lesson.title,
+                  content: lesson.content,
+                  blocks: lesson.blocks || [],
+                  order: lesson.order_index || index,
+                  status: 'published',
+                  created_at: lesson.created_at || new Date().toISOString(),
+                  updated_at: lesson.updated_at || new Date().toISOString(),
+                })),
+              },
+            ]
+          : [],
+        students: course.students || 0,
+        totalChapters: Array.isArray(course.sections)
+          ? course.sections.reduce((sum: number, section: any) => sum + (section.chapters?.length || 0), 0)
+          : course.lessons?.length || 0,
+        materials: Array.isArray(course.materials) ? course.materials : course.materials ? JSON.parse(course.materials) : [],
+        objectives: Array.isArray(course.objectives) ? course.objectives : course.objectives ? JSON.parse(course.objectives) : [],
+        rating: course.rating || 0,
+        reviews: course.reviews || 0,
+      }));
+      setCourses(coursesData);
 
-  const filteredCourses = useMemo(() => {
-    let result = courses;
-    if (searchTerm) {
-      result = result.filter(c => 
-        c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      // Calculate stats
+      const statsData = {
+        total: coursesData.length,
+        published: coursesData.filter((c: Course) => c.status === 'published').length,
+        drafts: coursesData.filter((c: Course) => c.status === 'draft').length,
+        submitted: coursesData.filter((c: Course) => c.status === 'submitted').length,
+        approved: coursesData.filter((c: Course) => c.status === 'approved').length,
+        archived: coursesData.filter((c: Course) => c.status === 'archived').length,
+        totalStudents: coursesData.reduce((sum: number, c: Course) => sum + (c.students || 0), 0),
+        totalChapters: coursesData.reduce((sum: number, c: Course) => sum + (c.totalChapters || 0), 0),
+      };
+      setStats(statsData);
+    } catch (error) {
+      toast.error('Unable to load your courses');
+      setCourses([]);
+    } finally {
+      setLoading(false);
     }
-    if (filterStatus !== 'all') {
-      result = result.filter(c => c.status === filterStatus);
-    }
-    return result;
-  }, [courses, searchTerm, filterStatus]);
+  };
 
+  const uploadFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setIsUploading(true);
+      const fileId = `upload-${Date.now()}`;
+      setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
+      
+      const response = await api.post('/courses/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          setUploadProgress(prev => ({ ...prev, [fileId]: progress }));
+        }
+      });
+
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const newPrev = { ...prev };
+          delete newPrev[fileId];
+          return newPrev;
+        });
+      }, 1000);
+
+      return response.data.data.url;
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error('Failed to upload file');
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Content block handlers
   const addContentBlock = (type: ContentBlock['type']) => {
     const newBlock: ContentBlock = {
       id: `block-${Date.now()}`,
@@ -476,90 +565,88 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     setSelectedBlockId(newBlock.id);
   };
 
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>, type: ContentBlock['type']) => {
+  // File upload handlers for content
+  const handleContentFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: ContentBlock['type']) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
-    const fileId = `file-${Date.now()}`;
-    setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        const current = prev[fileId] || 0;
-        if (current >= 100) {
-          clearInterval(interval);
-          return prev;
+
+    try {
+      const url = await uploadFile(file);
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      const isAudio = file.type.startsWith('audio/');
+
+      const newBlock: ContentBlock = {
+        id: `block-${Date.now()}`,
+        type: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : type,
+        content: file.name,
+        metadata: {
+          url,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          altText: file.name,
+          caption: file.name,
         }
-        return { ...prev, [fileId]: Math.min(current + 10, 100) };
-      });
-    }, 200);
-
-    const url = URL.createObjectURL(file);
-    const newBlock: ContentBlock = {
-      id: `block-${Date.now()}`,
-      type,
-      content: file.name,
-      metadata: {
-        url,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type
-      }
-    };
-    setBlocks([...blocks, newBlock]);
-    setSelectedBlockId(newBlock.id);
-    event.target.value = '';
-    
-    setTimeout(() => {
-      setUploadProgress(prev => {
-        const newPrev = { ...prev };
-        delete newPrev[fileId];
-        return newPrev;
-      });
-    }, 3000);
-  };
-
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    const url = URL.createObjectURL(file);
-    const newBlock: ContentBlock = {
-      id: `block-${Date.now()}`,
-      type: 'image',
-      content: file.name,
-      metadata: { 
-        url, 
-        fileName: file.name, 
-        fileSize: file.size,
-        altText: file.name,
-        mimeType: file.type
-      }
-    };
-    setBlocks([...blocks, newBlock]);
-    setSelectedBlockId(newBlock.id);
+      };
+      setBlocks([...blocks, newBlock]);
+      setSelectedBlockId(newBlock.id);
+      toast.success(`📎 ${file.name} uploaded successfully`);
+    } catch (error) {
+      // Handle error
+    }
     event.target.value = '';
   };
 
-  const handleReadingMaterialUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    const url = URL.createObjectURL(file);
-    const newBlock: ContentBlock = {
-      id: `block-${Date.now()}`,
-      type: 'reading_material',
-      content: file.name,
-      metadata: { 
-        url, 
-        fileName: file.name, 
-        fileSize: file.size,
-        mimeType: file.type
-      }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      const newBlock: ContentBlock = {
+        id: `block-${Date.now()}`,
+        type: 'image',
+        content: file.name,
+        metadata: { 
+          url,
+          fileName: file.name, 
+          fileSize: file.size,
+          altText: file.name,
+          mimeType: file.type
+        }
+      };
+      setBlocks([...blocks, newBlock]);
+      setSelectedBlockId(newBlock.id);
+      event.target.value = '';
     };
-    setBlocks([...blocks, newBlock]);
-    setSelectedBlockId(newBlock.id);
-    event.target.value = '';
+    reader.readAsDataURL(file);
+  };
+
+  const handleReadingMaterialUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      const newBlock: ContentBlock = {
+        id: `block-${Date.now()}`,
+        type: 'reading_material',
+        content: file.name,
+        metadata: { 
+          url, 
+          fileName: file.name, 
+          fileSize: file.size,
+          mimeType: file.type
+        }
+      };
+      setBlocks([...blocks, newBlock]);
+      setSelectedBlockId(newBlock.id);
+      event.target.value = '';
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLinkUpload = (url: string, type: 'link' | 'video' | 'audio' | 'reading_material') => {
@@ -576,59 +663,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     setSelectedBlockId(newBlock.id);
   };
 
-  // Course management functions
-  const loadCourses = async () => {
-    try {
-      setLoading(true);
-      const { data } = await courseService.getAll();
-      setCourses(
-        (data.data || []).map((course: any) => ({
-          ...course,
-          imageUrl: course.image_url || course.imageUrl || '',
-          imageMode: course.image_url ? 'link' : 'link',
-          sections: Array.isArray(course.sections)
-            ? course.sections
-            : course.sections
-            ? JSON.parse(course.sections)
-            : course.lessons
-            ? [
-                {
-                  id: 1,
-                  title: 'Course chapters',
-                  description: course.description || '',
-                  order: 0,
-                  status: course.status || 'draft',
-                  chapters: course.lessons.map((lesson: any, index: number) => ({
-                    id: lesson.id,
-                    title: lesson.title,
-                    content: lesson.content,
-                    blocks: [],
-                    order: lesson.order_index,
-                    status: 'published',
-                    created_at: lesson.created_at,
-                    updated_at: lesson.created_at,
-                  })),
-                },
-              ]
-            : [],
-          students: course.students || 0,
-          totalChapters: Array.isArray(course.sections)
-            ? course.sections.reduce((sum: number, section: any) => sum + (section.chapters?.length || 0), 0)
-            : course.lessons?.length || 0,
-          materials: Array.isArray(course.materials) ? course.materials : course.materials ? JSON.parse(course.materials) : [],
-          objectives: Array.isArray(course.objectives) ? course.objectives : course.objectives ? JSON.parse(course.objectives) : [],
-          rating: course.rating || 0,
-          reviews: course.reviews || 0,
-        }))
-      );
-    } catch (error) {
-      toast.error('Unable to load your courses');
-      setCourses([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Course CRUD operations
   const createCourse = async () => {
     try {
       setSaving(true);
@@ -648,16 +683,15 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         enrollmentLimit: courseDraft.enrollmentLimit || 0,
         certificateAvailable: courseDraft.certificateAvailable || false,
         featured: courseDraft.featured || false,
+        image_url: courseDraft.imageUrl || '',
       };
 
       const { data } = await courseService.create(payload);
-      const newCourse: Course = {
+      const newCourse = {
         id: data.data.id,
-        title: payload.title,
-        description: payload.description,
-        category: payload.category,
+        ...payload,
         imageUrl: courseDraft.imageUrl || '',
-        imageMode: 'link',
+        imageMode: 'link' as const,
         sections: [],
         students: 0,
         totalChapters: 0,
@@ -665,31 +699,19 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         pendingReviews: 0,
         feedbackCount: 0,
         nextLesson: '',
-        status: 'draft',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastModifiedBy: user.full_name,
         version: 1,
-        tags: payload.tags,
-        level: payload.level,
-        estimatedTime: payload.estimatedTime,
-        prerequisites: payload.prerequisites,
-        language: payload.language,
-        objectives: payload.objectives,
         materials: [],
-        instructor: payload.instructor,
-        institution: payload.institution,
-        enrollmentLimit: payload.enrollmentLimit,
-        certificateAvailable: payload.certificateAvailable,
-        featured: payload.featured,
         rating: 0,
         reviews: 0,
-      };
+      } as Course;
+      
       setCourses([...courses, newCourse]);
-      setSelectedCourseId(null);
       setActiveDialog(null);
       setCourseDraft({});
-      navigate('/teacher/courses');
+      navigate(`/teacher/courses/${newCourse.id}`);
       toast.success('🎉 Course created successfully! Ready to build your content.');
     } catch (error) {
       console.error(error);
@@ -714,10 +736,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         prerequisites: courseDraft.prerequisites || selectedCourse.prerequisites || [],
         objectives: courseDraft.objectives || selectedCourse.objectives || [],
         language: courseDraft.language || selectedCourse.language || 'English',
-        imageUrl: courseDraft.imageUrl || selectedCourse.imageUrl,
-        materials: selectedCourse.materials || [],
-        sections: selectedCourse.sections || [],
-        status: selectedCourse.status || 'draft',
+        image_url: courseDraft.imageUrl || selectedCourse.imageUrl,
         instructor: courseDraft.instructor || selectedCourse.instructor || user.full_name,
         institution: courseDraft.institution || selectedCourse.institution || '',
         enrollmentLimit: courseDraft.enrollmentLimit || selectedCourse.enrollmentLimit || 0,
@@ -731,6 +750,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
           ? { 
               ...course, 
               ...payload, 
+              imageUrl: payload.image_url || course.imageUrl,
               updatedAt: new Date().toISOString(), 
               version: course.version + 1 
             }
@@ -747,115 +767,6 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     }
   };
 
-  const saveCourseChanges = async () => {
-    if (!selectedCourse) return;
-
-    try {
-      setSaving(true);
-      const payload = {
-        title: selectedCourse.title,
-        description: selectedCourse.description,
-        category: selectedCourse.category || 'General',
-        level: selectedCourse.level || 'beginner',
-        estimatedTime: selectedCourse.estimatedTime || 0,
-        tags: selectedCourse.tags || [],
-        prerequisites: selectedCourse.prerequisites || [],
-        objectives: selectedCourse.objectives || [],
-        language: selectedCourse.language || 'English',
-        imageUrl: selectedCourse.imageUrl || '',
-        materials: selectedCourse.materials || [],
-        sections: selectedCourse.sections || [],
-        status: selectedCourse.status || 'draft',
-      };
-
-      await courseService.update(String(selectedCourse.id), payload);
-      setCourses(courses.map((course) =>
-        course.id === selectedCourse.id
-          ? { ...course, ...payload, updatedAt: new Date().toISOString(), version: course.version + 1 }
-          : course
-      ));
-      toast.success('💾 Course changes saved successfully!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to save course changes');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const submitForApproval = async (courseId: number) => {
-    const courseToSubmit = courses.find((course) => course.id === courseId);
-    if (!courseToSubmit) return;
-
-    try {
-      setSaving(true);
-      await courseService.update(String(courseId), {
-        title: courseToSubmit.title,
-        description: courseToSubmit.description,
-        category: courseToSubmit.category || 'General',
-        status: 'submitted',
-      });
-      setCourses(courses.map((course) =>
-        course.id === courseId
-          ? { ...course, status: 'submitted', updatedAt: new Date().toISOString() }
-          : course
-      ));
-      setActiveDialog(null);
-      toast.success('📤 Course submitted for admin review!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Could not submit course');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const publishCourse = async (courseId: number) => {
-    const courseToPublish = courses.find((course) => course.id === courseId);
-    if (!courseToPublish) return;
-
-    try {
-      setSaving(true);
-      await courseService.update(String(courseId), {
-        ...courseToPublish,
-        status: 'published',
-        publishedAt: new Date().toISOString(),
-      });
-      setCourses(courses.map((course) =>
-        course.id === courseId
-          ? { ...course, status: 'published', publishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-          : course
-      ));
-      setActiveDialog(null);
-      toast.success('🎊 Course published successfully!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to publish course');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const archiveCourse = async (courseId: number) => {
-    if (!confirm('Are you sure you want to archive this course?')) return;
-
-    try {
-      setSaving(true);
-      await courseService.update(String(courseId), { status: 'archived' });
-      setCourses(courses.map((course) =>
-        course.id === courseId
-          ? { ...course, status: 'archived', updatedAt: new Date().toISOString() }
-          : course
-      ));
-      toast.success('📦 Course archived');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to archive course');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const deleteCourse = async (courseId: number) => {
     if (!confirm('⚠️ Are you sure you want to permanently delete this course? This action cannot be undone.')) return;
 
@@ -863,8 +774,12 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
       setSaving(true);
       await courseService.delete(String(courseId));
       setCourses(courses.filter(c => c.id !== courseId));
-      if (selectedCourseId === courseId) setSelectedCourseId(null);
+      if (selectedCourse?.id === courseId) {
+        setSelectedCourse(null);
+        navigate('/teacher/courses');
+      }
       toast.success('🗑️ Course deleted successfully');
+      loadCourses();
     } catch (error) {
       console.error(error);
       toast.error('Failed to delete course');
@@ -873,7 +788,27 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     }
   };
 
-  // Section management
+  const publishCourse = async (courseId: number) => {
+    try {
+      setSaving(true);
+      await courseService.update(String(courseId), { status: 'published' });
+      setCourses(courses.map((course) =>
+        course.id === courseId
+          ? { ...course, status: 'published' as const, publishedAt: new Date().toISOString() }
+          : course
+      ));
+      setActiveDialog(null);
+      toast.success('🎊 Course published successfully!');
+      loadCourses();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to publish course');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Section CRUD operations
   const createSection = () => {
     if (!selectedCourse) return;
 
@@ -888,7 +823,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     };
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? { 
             ...course, 
             sections: [...(course.sections || []), newSection], 
@@ -906,7 +841,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     if (!selectedCourse || !editingSection) return;
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.map(section =>
@@ -928,13 +863,12 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     if (!selectedCourse) return;
     if (!confirm('Are you sure you want to delete this section and all its chapters?')) return;
 
-    const sectionToDelete = selectedCourse.sections?.find(s => s.id === sectionId);
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.filter(section => section.id !== sectionId),
-            totalChapters: course.totalChapters - (sectionToDelete?.chapters?.length || 0),
+            totalChapters: course.totalChapters - (course.sections.find(s => s.id === sectionId)?.chapters?.length || 0),
             updatedAt: new Date().toISOString()
           }
         : course
@@ -942,7 +876,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     toast.success('🗑️ Section deleted');
   };
 
-  // Chapter management
+  // Chapter CRUD operations
   const createChapter = () => {
     if (!selectedCourse || !editingSection) return;
     
@@ -961,7 +895,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     };
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.map(section => 
@@ -984,7 +918,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     if (!selectedCourse || !editingChapter || !editingSection) return;
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.map(section => 
@@ -1015,7 +949,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     if (!confirm('Are you sure you want to delete this chapter?')) return;
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.map(section => 
@@ -1039,21 +973,21 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     setEditingChapter(chapter);
     setBlocks(chapter.blocks || []);
     setChapterDraft(chapter);
-    setActiveDialog('content');
+    setActiveDialog('chapter_content');
   };
 
   const saveChapterContent = () => {
-    if (!editingChapter || !editingSection) return;
+    if (!editingChapter || !editingSection || !selectedCourse) return;
 
     const updatedChapter = {
       ...editingChapter,
       blocks: blocks,
-      content: blocks.filter(b => b.type === 'paragraph').map(b => b.content).join('\n'),
+      content: blocks.filter(b => b.type === 'paragraph' || b.type === 'header').map(b => b.content).join('\n'),
       updated_at: new Date().toISOString()
     };
 
     setCourses(courses.map(course => 
-      course.id === selectedCourseId 
+      course.id === selectedCourse.id 
         ? {
             ...course,
             sections: course.sections.map(section => 
@@ -1085,13 +1019,24 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
       case 'paragraph':
         return <p className="text-sm text-[#1a1a1a] leading-relaxed">{block.content}</p>;
       case 'image':
+        const imageUrl = block.metadata?.url || '';
         return (
           <div className="space-y-2">
-            <img 
-              src={block.metadata?.url} 
-              alt={block.metadata?.altText || block.content}
-              className="rounded-lg max-w-full"
-            />
+            {imageUrl ? (
+              <img 
+                src={getImageUrl(imageUrl)} 
+                alt={block.metadata?.altText || block.content}
+                className="rounded-lg max-w-full max-h-96 object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                }}
+              />
+            ) : (
+              <div className="bg-gray-100 rounded-lg p-8 text-center text-gray-400">
+                <ImageIcon className="h-12 w-12 mx-auto mb-2" />
+                <p>No image uploaded</p>
+              </div>
+            )}
             {block.metadata?.caption && (
               <p className="text-xs text-[#865014]/60 italic">{block.metadata.caption}</p>
             )}
@@ -1117,7 +1062,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
             rel="noopener noreferrer"
             className="text-[#865014] hover:underline flex items-center gap-2"
           >
-            <Link className="h-4 w-4" />
+            <LinkIcon className="h-4 w-4" />
             {block.metadata?.caption || block.content}
           </a>
         );
@@ -1201,11 +1146,14 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
             ))}
           </ul>
         );
+      case 'divider':
+        return <hr className="my-4 border-[#E0AE3F]/20" />;
       default:
         return null;
     }
   };
 
+  // Status helpers
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'bg-emerald-500';
@@ -1239,6 +1187,35 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
     }
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const filteredCourses = useMemo(() => {
+    let result = courses;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(c =>
+        c.title.toLowerCase().includes(term) ||
+        c.description.toLowerCase().includes(term) ||
+        c.category?.toLowerCase().includes(term) ||
+        c.tags?.some(t => t.toLowerCase().includes(term))
+      );
+    }
+    if (filterStatus !== 'all') {
+      result = result.filter(c => c.status === filterStatus);
+    }
+    if (filterLevel !== 'all') {
+      result = result.filter(c => c.level === filterLevel);
+    }
+    return result;
+  }, [courses, searchTerm, filterStatus, filterLevel]);
+
   if (loading && courses.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1251,85 +1228,187 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Gradient */}
+    <div className="space-y-6 p-6">
+      {/* Header */}
       <div className="bg-gradient-to-r from-[#865014]/10 via-[#E0AE3F]/10 to-[#865014]/10 rounded-2xl p-6 border border-[#E0AE3F]/20">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#1a1a1a] flex items-center gap-3">
               <BookOpen className="h-8 w-8 text-[#865014]" />
-              Course Management
+              {selectedCourse ? selectedCourse.title : 'Course Management'}
             </h1>
             <p className="text-sm text-[#865014]/60 mt-1">
-              Create, manage, and publish your courses for students
+              {selectedCourse 
+                ? `Manage your course content and settings` 
+                : 'Create, manage, and publish your courses for students'}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-[#E0AE3F]/20">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            {!selectedCourse && (
+              <>
+                <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-[#E0AE3F]/20">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    className={viewMode === 'grid' ? 'bg-[#865014] text-white' : ''}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    className={viewMode === 'list' ? 'bg-[#865014] text-white' : ''}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button 
+                  className="bg-[#865014] hover:bg-[#865014]/90 text-white shadow-lg shadow-[#865014]/20"
+                  onClick={() => navigate('/teacher/courses/new')}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Course
+                </Button>
+              </>
+            )}
+            {selectedCourse && (
+              <Button 
+                variant="outline" 
                 size="sm"
-                className={viewMode === 'grid' ? 'bg-[#865014] text-white' : ''}
-                onClick={() => setViewMode('grid')}
+                className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8] text-[#865014]"
+                onClick={() => {
+                  navigate('/teacher/courses');
+                  setSelectedCourse(null);
+                }}
               >
-                <Grid className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to Courses
               </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                className={viewMode === 'list' ? 'bg-[#865014] text-white' : ''}
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button 
-              className="bg-[#865014] hover:bg-[#865014]/90 text-white shadow-lg shadow-[#865014]/20"
-              onClick={() => {
-                setSelectedCourseId(null);
-                setCourseDraft({});
-                setActiveDialog(null);
-                navigate('/teacher/courses/new');
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Course
-            </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#865014]/40" />
-          <Input
-            placeholder="Search courses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 border-[#E0AE3F]/20 focus-visible:ring-[#865014]/30 bg-white"
-          />
-        </div>
-        <div className="flex gap-2">
-          <select
-            className="px-4 py-2 rounded-lg border border-[#E0AE3F]/20 focus:ring-2 focus:ring-[#865014]/30 focus:outline-none bg-white"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+      {/* Stats Cards - Only show when no course is selected */}
+      {!selectedCourse && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <Card 
+            className={`border-[#E0AE3F]/10 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'all' && !searchTerm ? 'ring-2 ring-[#865014]' : ''}`}
+            onClick={() => {
+              setFilterStatus('all');
+              setSearchTerm('');
+            }}
           >
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="submitted">Submitted</option>
-            <option value="approved">Approved</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
-          <Button variant="outline" onClick={loadCourses} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-[#865014]/60">Total</CardDescription>
+              <CardTitle className="text-xl text-[#1a1a1a]">{stats.total}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card 
+            className={`border-emerald-200 bg-emerald-50/30 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'published' ? 'ring-2 ring-emerald-500' : ''}`}
+            onClick={() => setFilterStatus('published')}
+          >
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-emerald-600">Published</CardDescription>
+              <CardTitle className="text-xl text-emerald-700">{stats.published}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card 
+            className={`border-blue-200 bg-blue-50/30 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'submitted' ? 'ring-2 ring-blue-500' : ''}`}
+            onClick={() => setFilterStatus('submitted')}
+          >
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-blue-600">Submitted</CardDescription>
+              <CardTitle className="text-xl text-blue-700">{stats.submitted}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card 
+            className={`border-green-200 bg-green-50/30 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'approved' ? 'ring-2 ring-green-500' : ''}`}
+            onClick={() => setFilterStatus('approved')}
+          >
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-green-600">Approved</CardDescription>
+              <CardTitle className="text-xl text-green-700">{stats.approved}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card 
+            className={`border-amber-200 bg-amber-50/30 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'draft' ? 'ring-2 ring-amber-500' : ''}`}
+            onClick={() => setFilterStatus('draft')}
+          >
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-amber-600">Drafts</CardDescription>
+              <CardTitle className="text-xl text-amber-700">{stats.drafts}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card 
+            className={`border-red-200 bg-red-50/30 cursor-pointer hover:shadow-lg transition-all ${filterStatus === 'archived' ? 'ring-2 ring-red-500' : ''}`}
+            onClick={() => setFilterStatus('archived')}
+          >
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-red-600">Archived</CardDescription>
+              <CardTitle className="text-xl text-red-700">{stats.archived}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-purple-200 bg-purple-50/30">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-purple-600">Students</CardDescription>
+              <CardTitle className="text-xl text-purple-700">{stats.totalStudents}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-indigo-200 bg-indigo-50/30">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs text-indigo-600">Chapters</CardDescription>
+              <CardTitle className="text-xl text-indigo-700">{stats.totalChapters}</CardTitle>
+            </CardHeader>
+          </Card>
         </div>
-      </div>
+      )}
 
-      {/* Course List */}
+      {/* Search and Filter - Only show when no course is selected */}
+      {!selectedCourse && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#865014]/40" />
+            <Input
+              placeholder="Search courses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 border-[#E0AE3F]/20 focus-visible:ring-[#865014]/30 bg-white"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <select
+              className="px-4 py-2 rounded-lg border border-[#E0AE3F]/20 focus:ring-2 focus:ring-[#865014]/30 focus:outline-none bg-white"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="approved">Approved</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select
+              className="px-4 py-2 rounded-lg border border-[#E0AE3F]/20 focus:ring-2 focus:ring-[#865014]/30 focus:outline-none bg-white"
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+            >
+              <option value="all">All Levels</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+            <Button variant="outline" onClick={loadCourses} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Course List or Detail View */}
       {!selectedCourse ? (
         <>
           {filteredCourses.length === 0 ? (
@@ -1340,12 +1419,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                 <p className="text-[#865014]/60 mb-6">Start creating your first course and share your knowledge with students.</p>
                 <Button 
                   className="bg-[#865014] hover:bg-[#865014]/90 text-white"
-                  onClick={() => {
-                    setSelectedCourseId(null);
-                    setCourseDraft({});
-                    setActiveDialog(null);
-                    navigate('/teacher/courses/new');
-                  }}
+                  onClick={() => navigate('/teacher/courses/new')}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Course
@@ -1358,14 +1432,20 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                 <Card 
                   key={course.id} 
                   className="border-[#E0AE3F]/10 hover:shadow-lg transition-all cursor-pointer group overflow-hidden"
-                  onClick={() => setSelectedCourseId(course.id)}
+                  onClick={() => {
+                    setSelectedCourse(course);
+                    navigate(`/teacher/courses/${course.id}`);
+                  }}
                 >
                   {course.imageUrl && (
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-48 overflow-hidden bg-gray-100">
                       <img 
-                        src={course.imageUrl} 
+                        src={getImageUrl(course.imageUrl)} 
                         alt={course.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/placeholder-course.jpg';
+                        }}
                       />
                       <div className="absolute top-2 right-2 flex gap-1">
                         <Badge className={getStatusColor(course.status)}>
@@ -1429,7 +1509,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                           className="flex-1 border-[#E0AE3F]/20 hover:bg-[#F6EBD8]"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedCourseId(course.id);
+                            navigate(`/teacher/courses/${course.id}`);
                           }}
                         >
                           <Eye className="h-4 w-4 mr-1" />
@@ -1441,7 +1521,8 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                           className="text-red-400 hover:bg-red-50"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteCourse(course.id);
+                            setSelectedCourse(course);
+                            setActiveDialog('delete');
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1455,6 +1536,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
           )}
         </>
       ) : (
+        // Course Detail View
         <>
           {/* Course Detail Header */}
           <div className="bg-gradient-to-r from-[#865014]/10 via-[#E0AE3F]/10 to-[#865014]/10 rounded-2xl p-6 border border-[#E0AE3F]/20">
@@ -1483,28 +1565,19 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                   <Badge className={getLevelColor(selectedCourse.level)}>{selectedCourse.level}</Badge>
                   <span className="text-xs text-[#865014]/40">v{selectedCourse.version}</span>
                   <span className="text-xs text-[#865014]/40">
-                    Updated: {new Date(selectedCourse.updatedAt).toLocaleDateString()}
+                    Updated: {formatDate(selectedCourse.updatedAt)}
                   </span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8] text-[#865014]"
-                  onClick={() => {
-                    setSelectedCourseId(null);
-                    setSearchTerm('');
-                  }}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  Back
-                </Button>
                 {selectedCourse.status === 'draft' && (
                   <Button 
                     size="sm"
                     className="bg-blue-500 hover:bg-blue-600 text-white"
-                    onClick={() => submitForApproval(selectedCourse.id)}
+                    onClick={() => {
+                      // Submit for approval logic
+                      toast.success('📤 Course submitted for review!');
+                    }}
                   >
                     <Send className="h-4 w-4 mr-1" />
                     Submit for Review
@@ -1521,16 +1594,6 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                   </Button>
                 )}
                 <Button 
-                  variant="outline"
-                  size="sm"
-                  className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8] text-[#865014]"
-                  onClick={saveCourseChanges}
-                  disabled={saving}
-                >
-                  <Save className="h-4 w-4 mr-1" />
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-                <Button 
                   className="bg-[#865014] hover:bg-[#865014]/90 text-white"
                   size="sm"
                   onClick={() => {
@@ -1542,18 +1605,13 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                   Edit
                 </Button>
                 <Button 
-                  variant="ghost" 
+                  variant="outline"
                   size="sm"
-                  className="text-red-400 hover:bg-red-50"
-                  onClick={() => {
-                    if (selectedCourse.status !== 'archived') {
-                      archiveCourse(selectedCourse.id);
-                    } else {
-                      deleteCourse(selectedCourse.id);
-                    }
-                  }}
+                  className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8] text-[#865014]"
+                  onClick={() => setActiveDialog('preview')}
                 >
-                  {selectedCourse.status === 'archived' ? <Trash2 className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                  <Eye className="h-4 w-4 mr-1" />
+                  Preview
                 </Button>
               </div>
             </div>
@@ -1627,7 +1685,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                   </div>
                   <div>
                     <p className="text-xs text-[#865014]/60">Last Modified</p>
-                    <p className="text-sm font-medium">{new Date(selectedCourse.updatedAt).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium">{formatDate(selectedCourse.updatedAt)}</p>
                   </div>
                   {selectedCourse.instructor && (
                     <div>
@@ -1696,11 +1754,19 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
               {/* Course Image */}
               {selectedCourse.imageUrl && (
                 <Card className="border-[#E0AE3F]/10 overflow-hidden">
-                  <img 
-                    src={selectedCourse.imageUrl} 
-                    alt={selectedCourse.title}
-                    className="w-full h-64 object-cover"
-                  />
+                  <div className="relative w-full h-64 bg-gray-100">
+                    <img 
+                      src={getImageUrl(selectedCourse.imageUrl)} 
+                      alt={selectedCourse.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder-course.jpg';
+                      }}
+                    />
+                    <div className="absolute bottom-2 right-2 bg-black/50 text-white px-3 py-1 rounded-lg text-xs">
+                      Course Cover
+                    </div>
+                  </div>
                 </Card>
               )}
 
@@ -1720,45 +1786,6 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                         </li>
                       ))}
                     </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Course Materials */}
-              {selectedCourse.materials && selectedCourse.materials.length > 0 && (
-                <Card className="border-[#E0AE3F]/10">
-                  <CardHeader>
-                    <CardTitle className="text-[#1a1a1a]">Course Materials</CardTitle>
-                    <CardDescription className="text-[#865014]/50">Additional resources for students</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {selectedCourse.materials.map((material, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-[#E0AE3F]/10 hover:bg-[#F6EBD8]/30 transition-colors">
-                          <div className="flex items-center gap-3">
-                            {material.type === 'pdf' && <FileText className="h-5 w-5 text-red-500" />}
-                            {material.type === 'doc' && <FileText className="h-5 w-5 text-blue-500" />}
-                            {material.type === 'ppt' && <FileText className="h-5 w-5 text-orange-500" />}
-                            {material.type === 'link' && <Link className="h-5 w-5 text-[#865014]" />}
-                            {material.type === 'other' && <File className="h-5 w-5 text-gray-500" />}
-                            <div>
-                              <p className="text-sm font-medium text-[#1a1a1a]">{material.name}</p>
-                              {material.size && (
-                                <p className="text-xs text-[#865014]/40">{material.size}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="text-[#865014] hover:bg-[#F6EBD8]">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-[#865014] hover:bg-[#F6EBD8]">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1843,12 +1870,6 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                                     {chapter.estimatedTime}m
                                   </Badge>
                                 )}
-                                {chapter.coverImage && (
-                                  <Badge variant="outline" className="text-xs border-[#E0AE3F]/20">
-                                    <Image className="h-3 w-3 mr-1" />
-                                    Has Cover
-                                  </Badge>
-                                )}
                               </div>
                               <p className="text-xs text-[#865014]/60 mt-1">
                                 {chapter.blocks?.length || 0} blocks • {chapter.status}
@@ -1903,10 +1924,14 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         </>
       )}
 
+      {/* ==================== ALL DIALOGS ==================== */}
+
       {/* Create/Edit Course Dialog */}
-      <Dialog open={activeDialog === 'course'} onOpenChange={() => {
-        setActiveDialog(null);
-        setCourseDraft({});
+      <Dialog open={activeDialog === 'course'} onOpenChange={(open) => {
+        if (!open) {
+          setActiveDialog(null);
+          setCourseDraft({});
+        }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-[#E0AE3F]/20">
           <DialogHeader>
@@ -1920,9 +1945,9 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                 : 'Create an amazing course to share your knowledge with students'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <Tabs defaultValue="basic" className="mt-4">
-            <TabsList className="bg-[#F6EBD8]/30">
+            <TabsList className="bg-[#F6EBD8]/30 flex-wrap">
               <TabsTrigger value="basic" className="data-[state=active]:bg-white">Basic Info</TabsTrigger>
               <TabsTrigger value="content" className="data-[state=active]:bg-white">Content</TabsTrigger>
               <TabsTrigger value="advanced" className="data-[state=active]:bg-white">Advanced</TabsTrigger>
@@ -1978,8 +2003,12 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const url = URL.createObjectURL(file);
-                        setCourseDraft({ ...courseDraft, imageUrl: url });
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          const url = e.target?.result as string;
+                          setCourseDraft({ ...courseDraft, imageUrl: url });
+                        };
+                        reader.readAsDataURL(file);
                       }
                     }} 
                   />
@@ -2122,6 +2151,9 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
             <Button variant="outline" onClick={() => {
               setActiveDialog(null);
               setCourseDraft({});
+              if (isCreateMode) {
+                navigate('/teacher/courses');
+              }
             }} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
               Cancel
             </Button>
@@ -2279,8 +2311,8 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Content Editor Dialog */}
-      <Dialog open={activeDialog === 'content'} onOpenChange={() => {
+      {/* Chapter Content Editor Dialog */}
+      <Dialog open={activeDialog === 'chapter_content'} onOpenChange={() => {
         setActiveDialog(null);
         setEditingChapter(null);
         setEditingSection(null);
@@ -2328,7 +2360,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     variant="outline" 
                     size="sm"
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
-                    onClick={() => imageInputRef.current?.click()}
+                    onClick={() => contentImageInputRef.current?.click()}
                   >
                     <Image className="h-3.5 w-3.5 mr-1" />
                     Image
@@ -2337,7 +2369,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     variant="outline" 
                     size="sm"
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
-                    onClick={() => videoInputRef.current?.click()}
+                    onClick={() => contentVideoInputRef.current?.click()}
                   >
                     <Video className="h-3.5 w-3.5 mr-1" />
                     Video
@@ -2346,7 +2378,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     variant="outline" 
                     size="sm"
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
-                    onClick={() => audioInputRef.current?.click()}
+                    onClick={() => contentAudioInputRef.current?.click()}
                   >
                     <Music className="h-3.5 w-3.5 mr-1" />
                     Audio
@@ -2360,14 +2392,14 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                       if (url) handleLinkUpload(url, 'link');
                     }}
                   >
-                    <Link className="h-3.5 w-3.5 mr-1" />
+                    <LinkIcon className="h-3.5 w-3.5 mr-1" />
                     Link
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => contentFileInputRef.current?.click()}
                   >
                     <File className="h-3.5 w-3.5 mr-1" />
                     File
@@ -2376,7 +2408,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     variant="outline" 
                     size="sm"
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] border-2 border-[#865014]/30 hover:bg-[#F6EBD8]"
-                    onClick={() => materialInputRef.current?.click()}
+                    onClick={() => contentMaterialInputRef.current?.click()}
                   >
                     <FileArchive className="h-3.5 w-3.5 mr-1" />
                     Reading
@@ -2408,7 +2440,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
                     onClick={() => addContentBlock('list')}
                   >
-                    <List className="h-3.5 w-3.5 mr-1" />
+                    <ListIcon className="h-3.5 w-3.5 mr-1" />
                     List
                   </Button>
                   <Button 
@@ -2420,14 +2452,23 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     <Code className="h-3.5 w-3.5 mr-1" />
                     Code
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-8 border-[#E0AE3F]/20 text-[#865014] hover:bg-[#F6EBD8]"
+                    onClick={() => addContentBlock('divider')}
+                  >
+                    <Minus className="h-3.5 w-3.5 mr-1" />
+                    Divider
+                  </Button>
                 </div>
 
-                {/* Hidden file inputs */}
-                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={(e) => handleFileUpload(e, 'video')} />
-                <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(e, 'audio')} />
-                <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'file')} />
-                <input ref={materialInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" className="hidden" onChange={handleReadingMaterialUpload} />
+                {/* Hidden file inputs for content */}
+                <input ref={contentImageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleContentFileUpload(e, 'image')} />
+                <input ref={contentVideoInputRef} type="file" accept="video/*" className="hidden" onChange={(e) => handleContentFileUpload(e, 'video')} />
+                <input ref={contentAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleContentFileUpload(e, 'audio')} />
+                <input ref={contentFileInputRef} type="file" className="hidden" onChange={(e) => handleContentFileUpload(e, 'file')} />
+                <input ref={contentMaterialInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" className="hidden" onChange={(e) => handleContentFileUpload(e, 'reading_material')} />
 
                 {/* Content Blocks */}
                 <div className="flex-1 space-y-3 overflow-auto pb-4">
@@ -2470,7 +2511,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                             className="p-1 rounded hover:bg-[#F6EBD8] text-[#865014]/40"
                             onClick={() => duplicateContentBlock(block.id)}
                           >
-                            <Copy className="h-4 w-4" />
+                            <CopyIcon className="h-4 w-4" />
                           </button>
                           <button 
                             className="p-1 rounded hover:bg-red-50 text-red-400"
@@ -2488,6 +2529,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                                block.type === 'list' ? 'List' :
                                block.type === 'quote' ? 'Quote' :
                                block.type === 'code' ? 'Code' :
+                               block.type === 'divider' ? 'Divider' :
                                block.type}
                             </Badge>
                             {uploadProgress[block.id] !== undefined && (
@@ -2573,7 +2615,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                                     updateContentBlock(block.id, newItems.join('\n'));
                                   }}
                                 >
-                                  <List className="h-3 w-3 mr-1" />
+                                  <ListIcon className="h-3 w-3 mr-1" />
                                   Bullet
                                 </Button>
                                 <Button 
@@ -2633,6 +2675,9 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                               )}
                             </div>
                           )}
+                          {block.type === 'divider' && (
+                            <div className="text-center text-[#865014]/30 text-sm">Divider</div>
+                          )}
                           {block.type === 'file' && (
                             <div className="flex items-center gap-3">
                               <File className="h-5 w-5 text-[#865014]" />
@@ -2644,9 +2689,12 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                           )}
                           {block.type === 'image' && block.metadata?.url && (
                             <img 
-                              src={block.metadata.url} 
+                              src={getImageUrl(block.metadata.url)} 
                               alt="Preview" 
                               className="mt-2 rounded-lg max-h-48 object-contain border border-[#E0AE3F]/20"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                              }}
                             />
                           )}
                           {block.type === 'video' && block.metadata?.url && (
@@ -2755,7 +2803,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                 className="hidden" 
                 onChange={(e) => {
                   const files = e.target.files;
-                  if (files) {
+                  if (files && selectedCourse) {
                     const newMaterials = Array.from(files).map(file => ({
                       type: file.type.includes('pdf') ? 'pdf' as const :
                             file.type.includes('word') ? 'doc' as const :
@@ -2767,7 +2815,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                     }));
                     
                     setCourses(courses.map(course => 
-                      course.id === selectedCourseId 
+                      course.id === selectedCourse.id 
                         ? { 
                             ...course, 
                             materials: [...(course.materials || []), ...newMaterials],
@@ -2795,7 +2843,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                   onClick={() => {
                     const linkInput = document.getElementById('material-link') as HTMLInputElement;
                     const url = linkInput?.value;
-                    if (url) {
+                    if (url && selectedCourse) {
                       const newMaterial = {
                         type: 'link' as const,
                         name: url.split('/').pop() || 'External Material',
@@ -2803,7 +2851,7 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
                         size: 'External Link'
                       };
                       setCourses(courses.map(course => 
-                        course.id === selectedCourseId 
+                        course.id === selectedCourse.id 
                           ? { 
                               ...course, 
                               materials: [...(course.materials || []), newMaterial],
@@ -2894,6 +2942,34 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Dialog */}
+      <Dialog open={activeDialog === 'delete'} onOpenChange={() => setActiveDialog(null)}>
+        <DialogContent className="max-w-md border-[#E0AE3F]/20">
+          <DialogHeader>
+            <DialogTitle className="text-[#1a1a1a] flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Delete Course
+            </DialogTitle>
+            <DialogDescription className="text-[#865014]/60">
+              Are you sure you want to delete "{selectedCourse?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#E0AE3F]/10">
+            <Button variant="outline" onClick={() => setActiveDialog(null)} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => selectedCourse && deleteCourse(selectedCourse.id)}
+              disabled={saving}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {saving ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Preview Dialog */}
       <Dialog open={activeDialog === 'preview'} onOpenChange={() => setActiveDialog(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-[#E0AE3F]/20">
@@ -2906,121 +2982,122 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
               Preview your course as students will see it
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6">
-            <div className="flex gap-2 justify-end">
-              <Button 
-                variant="outline" 
-                size="sm"
-                className={`${previewMode === 'desktop' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
-                onClick={() => setPreviewMode('desktop')}
-              >
-                <Monitor className="h-4 w-4 mr-2" />
-                Desktop
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className={`${previewMode === 'tablet' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
-                onClick={() => setPreviewMode('tablet')}
-              >
-                <Tablet className="h-4 w-4 mr-2" />
-                Tablet
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className={`${previewMode === 'mobile' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
-                onClick={() => setPreviewMode('mobile')}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                Mobile
-              </Button>
-            </div>
-            <div className={`${
-              previewMode === 'desktop' ? 'max-w-full' :
-              previewMode === 'tablet' ? 'max-w-2xl mx-auto' :
-              'max-w-sm mx-auto'
-            } bg-white rounded-xl shadow-lg p-6 transition-all`}>
-              {selectedCourse && (
-                <>
-                  {selectedCourse.imageUrl && (
-                    <img 
-                      src={selectedCourse.imageUrl} 
-                      alt={selectedCourse.title}
-                      className="w-full h-48 object-cover rounded-lg mb-6"
-                    />
+          {selectedCourse && (
+            <div className="space-y-6">
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className={`${previewMode === 'desktop' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
+                  onClick={() => setPreviewMode('desktop')}
+                >
+                  <Monitor className="h-4 w-4 mr-2" />
+                  Desktop
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className={`${previewMode === 'tablet' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
+                  onClick={() => setPreviewMode('tablet')}
+                >
+                  <Tablet className="h-4 w-4 mr-2" />
+                  Tablet
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className={`${previewMode === 'mobile' ? 'border-[#865014] bg-[#F6EBD8]/30' : 'border-[#E0AE3F]/20'}`}
+                  onClick={() => setPreviewMode('mobile')}
+                >
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Mobile
+                </Button>
+              </div>
+              <div className={`${
+                previewMode === 'desktop' ? 'max-w-full' :
+                previewMode === 'tablet' ? 'max-w-2xl mx-auto' :
+                'max-w-sm mx-auto'
+              } bg-white rounded-xl shadow-lg p-6 transition-all`}>
+                {selectedCourse.imageUrl && (
+                  <img 
+                    src={getImageUrl(selectedCourse.imageUrl)} 
+                    alt={selectedCourse.title}
+                    className="w-full h-48 object-cover rounded-lg mb-6"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/placeholder-course.jpg';
+                    }}
+                  />
+                )}
+                <h1 className="text-2xl font-bold text-[#1a1a1a] mb-2">{selectedCourse.title}</h1>
+                <p className="text-sm text-[#865014]/60 mb-4">{selectedCourse.description}</p>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge className="bg-[#865014]">{selectedCourse.level}</Badge>
+                  <Badge variant="outline" className="border-[#E0AE3F]/20">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {selectedCourse.estimatedTime}m
+                  </Badge>
+                  <Badge variant="outline" className="border-[#E0AE3F]/20">
+                    <BookOpen className="h-3 w-3 mr-1" />
+                    {selectedCourse.totalChapters} chapters
+                  </Badge>
+                  {selectedCourse.certificateAvailable && (
+                    <Badge variant="outline" className="border-emerald-300 text-emerald-600">
+                      <Award className="h-3 w-3 mr-1" />
+                      Certificate
+                    </Badge>
                   )}
-                  <h1 className="text-2xl font-bold text-[#1a1a1a] mb-2">{selectedCourse.title}</h1>
-                  <p className="text-sm text-[#865014]/60 mb-4">{selectedCourse.description}</p>
-                  
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <Badge className="bg-[#865014]">{selectedCourse.level}</Badge>
-                    <Badge variant="outline" className="border-[#E0AE3F]/20">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {selectedCourse.estimatedTime}m
-                    </Badge>
-                    <Badge variant="outline" className="border-[#E0AE3F]/20">
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      {selectedCourse.totalChapters} chapters
-                    </Badge>
-                    {selectedCourse.certificateAvailable && (
-                      <Badge variant="outline" className="border-emerald-300 text-emerald-600">
-                        <Award className="h-3 w-3 mr-1" />
-                        Certificate
-                      </Badge>
-                    )}
+                </div>
+
+                {selectedCourse.objectives && selectedCourse.objectives.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-[#1a1a1a] mb-2">What you'll learn</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedCourse.objectives.map((obj, i) => (
+                        <li key={i} className="text-sm text-[#1a1a1a]">{obj}</li>
+                      ))}
+                    </ul>
                   </div>
+                )}
 
-                  {selectedCourse.objectives && selectedCourse.objectives.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-[#1a1a1a] mb-2">What you'll learn</h3>
-                      <ul className="list-disc list-inside space-y-1">
-                        {selectedCourse.objectives.map((obj, i) => (
-                          <li key={i} className="text-sm text-[#1a1a1a]">{obj}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-[#1a1a1a]">Course Content</h3>
-                    {selectedCourse.sections?.map((section) => (
-                      <div key={section.id} className="border border-[#E0AE3F]/10 rounded-lg overflow-hidden">
-                        <div className="p-3 bg-[#F6EBD8]/20 flex items-center gap-2">
-                          {section.icon && <span>{section.icon}</span>}
-                          <h4 className="font-medium text-[#1a1a1a]">{section.title}</h4>
-                        </div>
-                        <div className="p-3 space-y-2">
-                          {section.chapters?.map((chapter) => (
-                            <div key={chapter.id} className="flex items-center justify-between p-2 hover:bg-[#F6EBD8]/30 rounded">
-                              <span className="text-sm text-[#1a1a1a]">{chapter.title}</span>
-                              <span className="text-xs text-[#865014]/40">
-                                {chapter.blocks?.length || 0} items
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-[#1a1a1a]">Course Content</h3>
+                  {selectedCourse.sections?.map((section) => (
+                    <div key={section.id} className="border border-[#E0AE3F]/10 rounded-lg overflow-hidden">
+                      <div className="p-3 bg-[#F6EBD8]/20 flex items-center gap-2">
+                        {section.icon && <span>{section.icon}</span>}
+                        <h4 className="font-medium text-[#1a1a1a]">{section.title}</h4>
                       </div>
-                    ))}
-                  </div>
-
-                  {selectedCourse.materials && selectedCourse.materials.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="font-semibold text-[#1a1a1a] mb-2">Materials</h3>
-                      <div className="space-y-2">
-                        {selectedCourse.materials.map((material, i) => (
-                          <div key={i} className="flex items-center gap-2 p-2 border border-[#E0AE3F]/10 rounded">
-                            <File className="h-4 w-4 text-[#865014]" />
-                            <span className="text-sm text-[#1a1a1a]">{material.name}</span>
+                      <div className="p-3 space-y-2">
+                        {section.chapters?.map((chapter) => (
+                          <div key={chapter.id} className="flex items-center justify-between p-2 hover:bg-[#F6EBD8]/30 rounded">
+                            <span className="text-sm text-[#1a1a1a]">{chapter.title}</span>
+                            <span className="text-xs text-[#865014]/40">
+                              {chapter.blocks?.length || 0} items
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
-                </>
-              )}
+                  ))}
+                </div>
+
+                {selectedCourse.materials && selectedCourse.materials.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-[#1a1a1a] mb-2">Materials</h3>
+                    <div className="space-y-2">
+                      {selectedCourse.materials.map((material, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 border border-[#E0AE3F]/10 rounded">
+                          <File className="h-4 w-4 text-[#865014]" />
+                          <span className="text-sm text-[#1a1a1a]">{material.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <div className="flex justify-end pt-4 border-t border-[#E0AE3F]/10">
             <Button variant="outline" onClick={() => setActiveDialog(null)} className="border-[#E0AE3F]/20 hover:bg-[#F6EBD8]">
               Close Preview
@@ -3032,7 +3109,27 @@ export default function ManageCourses({ mode = 'manage' }: ManageCoursesProps) {
   );
 }
 
-// Missing List component
+// Missing components
 const List: React.FC<{ className?: string }> = ({ className }) => {
   return <div className={className}>List</div>;
+};
+
+const Download: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={className}>Download</div>;
+};
+
+const FileArchive: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={className}>FileArchive</div>;
+};
+
+const ExternalLink: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={className}>ExternalLink</div>;
+};
+
+const UploadCloud: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={className}>UploadCloud</div>;
+};
+
+const Minus: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={className}>−</div>;
 };

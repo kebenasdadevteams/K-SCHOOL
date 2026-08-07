@@ -1,30 +1,182 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./DailyQuote.css";
-import {
-  getDailyQuote,
-  getQuoteByCategory,
-  getAvailablePastQuotes,
-} from "../../data/quotesData";
 import { useLanguage } from "../../contexts/LanguageContext";
+import api from "../../services/api";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 const DailyQuote = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showHistory, setShowHistory] = useState(false);
-  const [showFullQuote, setShowFullQuote] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [pastQuotes, setPastQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [allDevotionals, setAllDevotionals] = useState([]);
   const { language, isAmharic, isOromo } = useLanguage();
 
-  const quote =
-    selectedDate.toDateString() === new Date().toDateString()
-      ? getDailyQuote()
-      : getQuoteByCategory(selectedDate);
+  // Helper function to get full image URL
+  const getFullImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    if (imagePath.startsWith('/uploads/')) {
+      return `${BACKEND_URL}${imagePath}`;
+    }
+    if (imagePath.startsWith('uploads/')) {
+      return `${BACKEND_URL}/${imagePath}`;
+    }
+    return `${BACKEND_URL}/${imagePath}`;
+  };
 
-  const pastQuotes = getAvailablePastQuotes();
+  // Fetch devotionals from API
+  useEffect(() => {
+    fetchDevotionals();
+  }, []);
+
+  // Update quote when date changes or devotionals load
+  useEffect(() => {
+    if (allDevotionals.length > 0) {
+      updateQuoteForDate(selectedDate);
+    }
+  }, [selectedDate, allDevotionals]);
+
+  const fetchDevotionals = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/public/devotionals');
+      const data = response.data?.data || [];
+      
+      // Remove duplicates by id - ensure unique devotionals
+      const uniqueData = data.filter((item, index, self) => 
+        index === self.findIndex((t) => t.id === item.id)
+      );
+      
+      const formattedDevotionals = uniqueData.map((item) => {
+        const fullImageUrl = getFullImageUrl(item.featured_image);
+        
+        return {
+          id: item.id,
+          text: item.title,
+          textAmharic: item.title,
+          textOromo: item.title,
+          reference: item.verse_reference || 'Scripture',
+          category: item.category || 'Devotional',
+          image: fullImageUrl || 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800',
+          featured_image: fullImageUrl || '',
+          date: item.published_at ? new Date(item.published_at) : new Date(item.created_at),
+          content: item.content || item.excerpt || item.title,
+          excerpt: item.excerpt || item.content?.substring(0, 150) || item.title,
+          verse_text: item.verse_text || '',
+          slug: item.slug || '',
+          is_featured_today: item.is_featured_today || false,
+          author_name: item.author_name || 'Kebena SDA Church',
+          title: item.title,
+          subtitle: item.subtitle || '',
+          header: item.header || '',
+        };
+      });
+
+      setAllDevotionals(formattedDevotionals);
+      
+      // Set today's quote - this will only set ONE quote
+      updateQuoteForDate(new Date(), formattedDevotionals);
+      
+      // Build past quotes list
+      buildPastQuotes(formattedDevotionals);
+      
+    } catch (err) {
+      console.error('Failed to fetch devotionals:', err);
+      setError('Failed to load devotionals. Please try again.');
+      setAllDevotionals(fallbackDevotionals);
+      updateQuoteForDate(new Date(), fallbackDevotionals);
+      buildPastQuotes(fallbackDevotionals);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateQuoteForDate = (date, devotionals = allDevotionals) => {
+    if (devotionals.length === 0) return;
+
+    const dateStr = date.toDateString();
+    
+    // Priority 1: Find a devotional published on this specific date
+    let foundQuote = devotionals.find(d => 
+      d.date && new Date(d.date).toDateString() === dateStr
+    );
+
+    // Priority 2: If today, get the featured devotional (only if not already found)
+    if (!foundQuote && dateStr === new Date().toDateString()) {
+      const featured = devotionals.find(d => d.is_featured_today === true);
+      if (featured) {
+        foundQuote = featured;
+      }
+    }
+
+    // Priority 3: Get the latest published devotional
+    if (!foundQuote) {
+      const sorted = [...devotionals]
+        .filter(d => d.date && new Date(d.date) <= new Date())
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      foundQuote = sorted[0] || devotionals[0];
+    }
+
+    // Set ONLY ONE quote
+    setQuote(foundQuote);
+  };
+
+  const buildPastQuotes = (devotionals = allDevotionals) => {
+    // Get the featured devotional ID to exclude it
+    const featuredId = devotionals.find(d => d.is_featured_today === true)?.id;
+    
+    // Get all published devotionals sorted by date (excluding the featured one)
+    const sorted = [...devotionals]
+      .filter(d => {
+        // Exclude featured today's devotional
+        if (d.id === featuredId) return false;
+        // Exclude any devotional that hasn't been published yet
+        if (!d.date) return false;
+        return new Date(d.date) < new Date();
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 10);
+
+    const formatted = sorted.map(d => ({
+      ...d,
+      date: new Date(d.date)
+    }));
+
+    setPastQuotes(formatted);
+  };
 
   const handlePrevious = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - 1);
+
+    // Check if there's a devotional for this date
+    const hasDevotional = allDevotionals.some(d => 
+      d.date && new Date(d.date).toDateString() === newDate.toDateString()
+    );
+
+    if (!hasDevotional) {
+      // Find the previous available date
+      const availableDates = allDevotionals
+        .filter(d => d.date && new Date(d.date) < new Date())
+        .map(d => new Date(d.date))
+        .sort((a, b) => b - a);
+
+      const previousDate = availableDates.find(d => d < selectedDate);
+      if (previousDate) {
+        setSelectedDate(previousDate);
+        return;
+      }
+    }
 
     const startDate = new Date("2025-01-01");
     if (newDate >= startDate) {
@@ -51,10 +203,12 @@ const DailyQuote = () => {
   };
 
   const getShareText = () => {
+    if (!quote) return '';
+    
     const quoteText = isOromo
-      ? quote.textOromo
+      ? quote.textOromo || quote.text
       : isAmharic
-      ? quote.textAmharic
+      ? quote.textAmharic || quote.text
       : quote.text;
 
     return `"${quoteText}" - ${quote.reference}\n\nFrom Kebena SDA Church`;
@@ -110,7 +264,6 @@ const DailyQuote = () => {
           ? "ወደ ቅዳ ቦርድ ተቀድቷል!"
           : "Copied to clipboard!";
 
-        // Show temporary success message
         const button = document.querySelector(
           '.share-option[data-platform="copy"]'
         );
@@ -144,7 +297,6 @@ const DailyQuote = () => {
         console.log("Native share cancelled");
       }
     } else {
-      // Fallback to copy if native share not supported
       copyToClipboard();
     }
   };
@@ -155,9 +307,9 @@ const DailyQuote = () => {
     new Date().setHours(0, 0, 0, 0);
 
   const titles = {
-    en: "Daily Quote",
-    am: "የቀኑ ጥቅስ",
-    or: "Gaaffii Guyyaa",
+    en: "Daily Devotional",
+    am: "የቀኑ መንፈሳዊ አስተሳሰብ",
+    or: "Yaadannoo Guyyaa",
   };
 
   const shareLabel = { en: "Share", am: "አጋራ", or: "Qooda" };
@@ -169,156 +321,194 @@ const DailyQuote = () => {
   };
   const closeLabel = { en: "Close", am: "ዝጋ", or: "Cufi" };
   const readMoreLabel = {
-    en: "Read Full Quote",
-    am: "ሙሉ ጥቅስ አንብብ",
-    or: "Gaaffii Guutuu Dubbisi",
+    en: "Read Full Devotional",
+    am: "ሙሉውን አንብብ",
+    or: "Guutuu Dubbisi",
   };
 
-  // Share modal translations
   const shareModalTitle = {
-    en: "Share this quote",
-    am: "ይህን ጥቅስ ያጋሩ",
-    or: "Gaaffii kana Qoodaa",
+    en: "Share this devotional",
+    am: "ይህን መንፈሳዊ አስተሳሰብ ያጋሩ",
+    or: "Yaadannoo kana Qoodaa",
   };
 
-  if (!quote) return null;
-
-  const currentQuoteText = isOromo
-    ? quote.textOromo
-    : isAmharic
-    ? quote.textAmharic
-    : quote.text;
-
-  const shouldTruncate = currentQuoteText.length > 150;
-  const displayText =
-    showFullQuote || !shouldTruncate
-      ? currentQuoteText
-      : currentQuoteText.substring(0, 150) + "...";
-
-  return (
-    <>
+  if (loading) {
+    return (
       <section className="daily-quote">
         <div className="quote-container">
-          <div className="quote-image-wrapper">
-            <img
-              src={quote.image}
-              alt={quote.category}
-              className="quote-image"
-            />
-            <div className="quote-image-overlay"></div>
+          <div className="quote-content">
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Loading devotional...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="daily-quote">
+        <div className="quote-container">
+          <div className="quote-content">
+            <div className="error-state">
+              <p>{error}</p>
+              <button onClick={fetchDevotionals} className="retry-btn">
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // If no quote is found, don't render anything
+  if (!quote) return null;
+
+  const fullContent = quote.content || quote.text || '';
+  const displayText = fullContent.length > 150 
+    ? fullContent.substring(0, 150) + '...' 
+    : fullContent;
+
+  const imageUrl = quote.image || quote.featured_image || 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800';
+
+  return (
+    <section className="daily-quote">
+      <div className="quote-container">
+        <div className="quote-image-wrapper">
+          <img
+            src={imageUrl}
+            alt={quote.category || 'Devotional'}
+            className="quote-image"
+            onError={(e) => {
+              e.target.src = 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800';
+            }}
+          />
+          <div className="quote-image-overlay"></div>
+        </div>
+
+        <div className="quote-content">
+          <div className="quote-header-row">
+            <div className="quote-header-left">
+              <svg
+                className="quote-icon"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+              </svg>
+              <h2 className="quote-heading">{titles[language]}</h2>
+            </div>
+            <div className="quote-category">{quote.category || 'Devotional'}</div>
           </div>
 
-          <div className="quote-content">
-            <div className="quote-header-row">
-              <div className="quote-header-left">
-                <svg
-                  className="quote-icon"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                </svg>
-                <h2 className="quote-heading">{titles[language]}</h2>
-              </div>
-              <div className="quote-category">{quote.category}</div>
-            </div>
+          <blockquote className="quote-text">"{displayText}"</blockquote>
 
-            <blockquote className="quote-text">"{displayText}"</blockquote>
+          <cite className="quote-reference">— {quote.reference}</cite>
 
-            <cite className="quote-reference">— {quote.reference}</cite>
+          {/* Read More Button - Opens Modal */}
+          {fullContent.length > 150 && (
+            <button
+              className="quote-read-more-btn"
+              onClick={() => setShowQuoteModal(true)}
+            >
+              {readMoreLabel[language]}
+              <span className="arrow">→</span>
+            </button>
+          )}
 
-            {/* Read More Button - Opens Modal */}
-            {shouldTruncate && !showFullQuote && (
+          <div className="quote-actions">
+            <div className="quote-navigation">
               <button
-                className="quote-read-more-btn"
-                onClick={() => setShowQuoteModal(true)}
+                onClick={handlePrevious}
+                className="quote-nav-btn"
+                aria-label="Previous quote"
               >
-                {readMoreLabel[language]}
-                <span className="arrow">→</span>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
               </button>
-            )}
 
-            <div className="quote-actions">
-              <div className="quote-navigation">
-                <button
-                  onClick={handlePrevious}
-                  className="quote-nav-btn"
-                  aria-label="Previous quote"
-                >
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
+              {!isToday && (
+                <button onClick={handleToday} className="quote-today-btn">
+                  {todayLabel[language]}
                 </button>
+              )}
 
-                {!isToday && (
-                  <button onClick={handleToday} className="quote-today-btn">
-                    {todayLabel[language]}
-                  </button>
-                )}
-
-                <button
-                  onClick={handleNext}
-                  className="quote-nav-btn"
-                  disabled={!canGoNext}
-                  aria-label="Next quote"
-                >
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="quote-action-buttons">
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="quote-history-btn"
-                >
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {showHistory ? closeLabel[language] : historyLabel[language]}
-                </button>
-
-                <button onClick={handleShareClick} className="quote-share-btn">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                    />
-                  </svg>
-                  {shareLabel[language]}
-                </button>
-              </div>
+              <button
+                onClick={handleNext}
+                className="quote-nav-btn"
+                disabled={!canGoNext}
+                aria-label="Next quote"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
             </div>
 
-            {showHistory && (
-              <div className="quote-history">
-                <h3 className="history-title">
-                  {language === "or"
-                    ? "Gaaffilee Darban"
-                    : language === "am"
-                    ? "ያለፉ ጥቅሶች"
-                    : "Past Quotes"}
-                </h3>
-                <div className="history-list">
-                  {pastQuotes.map((pastQuote, index) => (
+            <div className="quote-action-buttons">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="quote-history-btn"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {showHistory ? closeLabel[language] : historyLabel[language]}
+              </button>
+
+              <button onClick={handleShareClick} className="quote-share-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                  />
+                </svg>
+                {shareLabel[language]}
+              </button>
+            </div>
+          </div>
+
+          {showHistory && (
+            <div className="quote-history">
+              <h3 className="history-title">
+                {language === "or"
+                  ? "Yaadannoo Darban"
+                  : language === "am"
+                  ? "ያለፉ መንፈሳዊ አስተሳሰቦች"
+                  : "Past Devotionals"}
+              </h3>
+              <div className="history-list">
+                {pastQuotes.length === 0 ? (
+                  <div className="history-empty">
+                    {language === "or"
+                      ? "Yaadannoo darban hin jiru"
+                      : language === "am"
+                      ? "ምንም ያለፉ መንፈሳዊ አስተሳሰቦች የሉም"
+                      : "No past devotionals available"}
+                  </div>
+                ) : (
+                  pastQuotes.map((pastQuote, index) => (
                     <div
                       key={index}
                       className={`history-item ${
@@ -339,28 +529,22 @@ const DailyQuote = () => {
                             : language === "am"
                             ? "am-ET"
                             : "en-US",
-                          { month: "short", day: "numeric" }
+                          { month: "short", day: "numeric", year: "numeric" }
                         )}
                       </div>
                       <div className="history-preview">
-                        {(isOromo
-                          ? pastQuote.textOromo
-                          : isAmharic
-                          ? pastQuote.textAmharic
-                          : pastQuote.text
-                        ).substring(0, 60)}
-                        ...
+                        {pastQuote.text?.substring(0, 60) || ''}...
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* Quote Modal Popup */}
+      {/* Quote Modal Popup - Full Content */}
       {showQuoteModal && (
         <div
           className="quote-modal-overlay"
@@ -385,12 +569,15 @@ const DailyQuote = () => {
             <div className="modal-content">
               <div className="modal-image-section">
                 <img
-                  src={quote.image}
-                  alt={quote.category}
+                  src={imageUrl}
+                  alt={quote.category || 'Devotional'}
                   className="modal-image"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800';
+                  }}
                 />
                 <div className="modal-image-overlay"></div>
-                <div className="modal-category">{quote.category}</div>
+                <div className="modal-category">{quote.category || 'Devotional'}</div>
               </div>
 
               <div className="modal-text-section">
@@ -402,14 +589,23 @@ const DailyQuote = () => {
                   >
                     <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                   </svg>
-                  <h2 className="modal-title">{titles[language]}</h2>
+                  <h2 className="modal-title">{quote.title || 'Devotional'}</h2>
                 </div>
 
-                <blockquote className="modal-quote-text">
-                  "{currentQuoteText}"
-                </blockquote>
+                {quote.subtitle && (
+                  <p className="modal-subtitle">{quote.subtitle}</p>
+                )}
 
-                <cite className="modal-reference">— {quote.reference}</cite>
+                <div className="modal-content-text">
+                  <p>{fullContent}</p>
+                </div>
+
+                {quote.verse_text && (
+                  <div className="modal-scripture">
+                    <p className="modal-scripture-text">{quote.verse_text}</p>
+                    <p className="modal-scripture-ref">— {quote.reference}</p>
+                  </div>
+                )}
 
                 <div className="modal-actions">
                   <button
@@ -484,15 +680,14 @@ const DailyQuote = () => {
                 </h2>
                 <p className="share-modal-subtitle">
                   {language === "or"
-                    ? "Gaaffii kana media hawaasaa kanatti qoodi"
+                    ? "Yaadannoo kana media hawaasaa kanatti qoodi"
                     : language === "am"
-                    ? "ይህን ጥቅስ በማህበራዊ ሚዲያ ያጋሩ"
-                    : "Share this quote on social media"}
+                    ? "ይህን መንፈሳዊ አስተሳሰብ በማህበራዊ ሚዲያ ያጋሩ"
+                    : "Share this devotional on social media"}
                 </p>
               </div>
 
               <div className="share-options-grid">
-                {/* Native Share (for mobile) */}
                 {navigator.share && (
                   <button
                     className="share-option native-share"
@@ -514,7 +709,6 @@ const DailyQuote = () => {
                   </button>
                 )}
 
-                {/* Facebook */}
                 <button
                   className="share-option"
                   onClick={shareOnFacebook}
@@ -528,7 +722,6 @@ const DailyQuote = () => {
                   <span className="share-platform-name">Facebook</span>
                 </button>
 
-                {/* WhatsApp */}
                 <button
                   className="share-option"
                   onClick={shareOnWhatsApp}
@@ -542,7 +735,6 @@ const DailyQuote = () => {
                   <span className="share-platform-name">WhatsApp</span>
                 </button>
 
-                {/* Telegram */}
                 <button
                   className="share-option"
                   onClick={shareOnTelegram}
@@ -556,7 +748,6 @@ const DailyQuote = () => {
                   <span className="share-platform-name">Telegram</span>
                 </button>
 
-                {/* Twitter */}
                 <button
                   className="share-option"
                   onClick={shareOnTwitter}
@@ -570,7 +761,6 @@ const DailyQuote = () => {
                   <span className="share-platform-name">Twitter</span>
                 </button>
 
-                {/* Copy Link */}
                 <button
                   className="share-option"
                   onClick={copyToClipboard}
@@ -612,8 +802,46 @@ const DailyQuote = () => {
           </div>
         </div>
       )}
-    </>
+    </section>
   );
 };
+
+// Fallback devotionals in case API fails
+const fallbackDevotionals = [
+  {
+    id: 1,
+    text: "Walking in God's Grace",
+    textAmharic: "በእግዚአብሔር ጸጋ መመላለስ",
+    textOromo: "Ayyaana Waaqayyoon Deemuu",
+    reference: "Ephesians 2:8",
+    category: "Grace",
+    image: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800",
+    featured_image: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800",
+    date: new Date(),
+    content: "Grace is not just a concept; it's the very foundation of our relationship with God. When we understand that we are saved by grace through faith, we begin to live in the freedom that Christ has given us. This devotional explores the depth of God's grace and how it transforms our daily walk with Him.",
+    verse_text: "For it is by grace you have been saved, through faith—and this is not from yourselves, it is the gift of God—",
+    is_featured_today: true,
+    title: "Walking in God's Grace",
+    subtitle: "Understanding the transformative power of God's grace",
+    author_name: "Kebena SDA Church",
+  },
+  {
+    id: 2,
+    text: "The Power of Prayer",
+    textAmharic: "የጸሎት ኃይል",
+    textOromo: "Humna Kadhaa",
+    reference: "Philippians 4:6",
+    category: "Prayer",
+    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800",
+    featured_image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800",
+    date: new Date(Date.now() - 86400000),
+    content: "Prayer is our direct line of communication with God. It's not just about asking for things, but about building a relationship with our Heavenly Father. Through prayer, we find strength, guidance, and peace that surpasses all understanding.",
+    verse_text: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.",
+    is_featured_today: false,
+    title: "The Power of Prayer",
+    subtitle: "Discovering the transformative power of prayer",
+    author_name: "Kebena SDA Church",
+  },
+];
 
 export default DailyQuote;

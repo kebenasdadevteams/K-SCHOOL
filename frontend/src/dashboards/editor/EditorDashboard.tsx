@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { SidebarLayout } from '../components/SidebarLayout';
-import RoleDashboard from '../RoleDashboard';
 import api from '../../services/api';
 import ContentManagement from './ContentManagement';
 import Podcasts from './Podcasts';
@@ -10,6 +9,7 @@ import Promotions from './Promotions';
 import NotificationsPage from './Notifications';
 import SettingsPage from './Settings';
 import UserManagement from '../admin/UserManagement';
+import ManageDevotionals from './ManageDevotioanals';
 import { 
   Home, 
   FileText, 
@@ -403,7 +403,7 @@ const Overview: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="rounded-xl border border-[#E0AE3F]/10 bg-white">
+      {/* <div className="rounded-xl border border-[#E0AE3F]/10 bg-white">
         <div className="p-4">
           <h3 className="text-lg font-semibold text-[#1a1a1a] flex items-center gap-2 mb-2">
             <Zap className="h-5 w-5 text-[#E0AE3F]" />
@@ -429,7 +429,7 @@ const Overview: React.FC = () => {
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Editorial Calendar Preview */}
       <div className="rounded-xl border border-[#E0AE3F]/10 bg-white">
@@ -507,6 +507,7 @@ const EditorDashboard: React.FC = () => {
         <Route index element={<Overview />} />
         <Route path="content" element={<ContentManagement />} />
         <Route path="podcasts" element={<Podcasts />} />
+        <Route path="devotionals" element={<ManageDevotionals />} />
         <Route path="promotions" element={<Promotions />} />
         <Route path="messages" element={<Messages />} />
         <Route path="notifications" element={<NotificationsPage />} />

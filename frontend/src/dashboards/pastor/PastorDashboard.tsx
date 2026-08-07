@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { SidebarLayout } from '../components/SidebarLayout';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import StudentSettings from '../student/Settings';
+import { SettingsContent } from '../student/Settings';
 import { 
   Users, 
   FileText, 
@@ -709,7 +709,7 @@ const PastorProfile: React.FC = () => (
   </div>
 );
 
-const PastorSettings: React.FC = () => <StudentSettings />;
+const PastorSettings: React.FC = () => <SettingsContent initialView="pastor" />;
 
 // Main Pastor Dashboard Component
 const PastorDashboard: React.FC = () => {

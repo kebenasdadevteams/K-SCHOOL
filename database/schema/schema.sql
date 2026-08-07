@@ -265,6 +265,31 @@ INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES
   ('instagram_url', 'https://www.instagram.com/kebenasda'),
   ('tiktok_url', 'https://www.tiktok.com/@kebenasda');
 
+  -- ── DEVOTIONALS ─────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS devotionals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(300) NOT NULL,
+    header VARCHAR(500),
+    subtitle VARCHAR(500),
+    slug VARCHAR(350) UNIQUE,
+    category VARCHAR(100),
+    verse_reference VARCHAR(200),
+    verse_text TEXT,
+    content LONGTEXT,
+    featured_image VARCHAR(500),
+    status ENUM('draft','scheduled','published','archived') DEFAULT 'draft',
+    is_featured_today BOOLEAN DEFAULT FALSE,
+    publish_at DATETIME,
+    published_at DATETIME,
+    created_by INT,
+    updated_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+
 -- Seed weekly programs
 INSERT IGNORE INTO programs (day_en, day_am, day_or, name_en, name_am, name_or, time_display, description, order_index) VALUES
 ('Saturday','ሰንበት (ቅዳሜ)','Sanbata','Prayer Meeting','የጸሎት አገልግሎት','Sagantaa Kadhannaa','ከ ጠዋቱ 2:00-3:00','የጠወት የፀሎት ጊዜ',1),

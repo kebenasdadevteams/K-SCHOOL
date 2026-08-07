@@ -11,6 +11,7 @@ const editorRoutes = require('./routes/editor-routes');
 const pastorRoutes = require('./routes/pastor-routes');
 const activityRoutes = require('./routes/activity-routes');
 const teacherRoutes = require('./routes/teacher-routes');
+const promotionRoutes = require('./routes/promotion-routes');
 
 const app = express();
 
@@ -36,6 +37,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
 app.get('/health', (req, res) => res.json({ success: true, message: 'K-School API is running 🚀' }));
 
 app.use('/api/v1/auth', authRoutes);
@@ -47,6 +51,7 @@ app.use('/api/v1/editor', editorRoutes);
 app.use('/api/v1/pastor', pastorRoutes);
 app.use('/api/v1/activity', activityRoutes);
 app.use('/api/v1/teacher', teacherRoutes);
+app.use('/api/v1/promotions', promotionRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 app.use(errorMiddleware);

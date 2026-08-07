@@ -62,8 +62,8 @@ const getAllCourses = async (req, res) => {
       query += ' WHERE c.teacher_id = ? ORDER BY c.created_at DESC';
       queryParams.push(req.user.id);
     } else {
-      query += ' WHERE c.status = ? ORDER BY c.created_at DESC';
-      queryParams.push('published');
+      query += ' WHERE c.status IN (?, ?) ORDER BY c.created_at DESC';
+      queryParams.push('published', 'approved');
     }
 
     const [courses] = await pool.query(query, queryParams);

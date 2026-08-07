@@ -53,7 +53,7 @@ export default function Messages() {
   const [role] = useState(locationState?.role || 'editor');
   const [activeView] = useState<'student' | 'teacher' | 'pastor' | 'editor' | 'admin' | 'developer'>(locationState?.view ?? (locationState?.role === 'teacher' ? 'teacher' : locationState?.role === 'pastor' ? 'pastor' : locationState?.role === 'editor' ? 'editor' : locationState?.role === 'admin' ? 'admin' : locationState?.role === 'developer' ? 'developer' : 'editor'));
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedContactId, setSelectedContactId] = useState(0);
+  const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [draftMessage, setDraftMessage] = useState('');
   const [mobileView, setMobileView] = useState<'inbox' | 'chat'>('inbox');
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -140,7 +140,7 @@ export default function Messages() {
         const loadedContacts = Array.from(contactMap.values()).sort((a, b) => a.name.localeCompare(b.name));
         setContacts(loadedContacts);
         setThreads(grouped);
-        if (loadedContacts[0]) {
+        if (loadedContacts.length > 0) {
           setSelectedContactId(loadedContacts[0].id);
         }
       } catch (error) {
@@ -160,8 +160,8 @@ export default function Messages() {
     );
   }, [contacts, searchTerm]);
 
-  const selectedContact = contacts.find((contact) => contact.id === selectedContactId) || contacts[0];
-  const messages = threads[selectedContactId] || [];
+  const selectedContact = contacts.find((contact) => contact.id === selectedContactId) || null;
+  const messages = selectedContactId ? threads[selectedContactId] || [] : [];
 
   const openConversation = (contactId: number) => {
     setSelectedContactId(contactId);
@@ -203,6 +203,7 @@ export default function Messages() {
   };
 
   const appendAttachment = (attachment: ChatMessage['attachment']) => {
+    if (!selectedContactId) return;
     setThreads((current) => ({
       ...current,
       [selectedContactId]: [
@@ -342,46 +343,50 @@ export default function Messages() {
     </div>
   );
 
-  
-
   const inboxPane = (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {inboxHeader}
       <ScrollArea className="flex-1 min-h-0">
         <div className="space-y-1 px-2 py-2">
-          {filteredContacts.map((contact) => (
-            <button
-              key={contact.id}
-              onClick={() => openConversation(contact.id)}
-              className={`group relative flex w-full items-center gap-3 px-3 py-3 text-left transition-shadow ${
-                selectedContactId === contact.id
-                  ? 'bg-muted border border-border shadow-sm' 
-                  : 'bg-background border border-border/50 hover:shadow-sm'
-              } rounded-lg`}
-            >
-              <span className={`absolute left-0 top-1/2 -translate-y-1/2 h-10 w-1 rounded-r ${selectedContactId === contact.id ? 'bg-primary' : 'bg-transparent'}`} />
-              <div className="pl-3" />
-              <Avatar className={`h-14 w-14 shrink-0 ring-1 shadow-sm ${avatarTone(contact.id)}`}>
-                <AvatarFallback className="bg-transparent">{contact.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold text-foreground">{contact.name}</p>
-                    <p className="truncate text-sm text-muted-foreground">{contact.preview}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 pl-2 text-xs text-muted-foreground">
-                    <span>{contact.time}</span>
-                    {contact.unread > 0 && (
-                      <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
-                        {contact.unread}
-                      </span>
-                    )}
+          {filteredContacts.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              {contacts.length === 0 ? 'No messages yet' : 'No contacts found'}
+            </div>
+          ) : (
+            filteredContacts.map((contact) => (
+              <button
+                key={contact.id}
+                onClick={() => openConversation(contact.id)}
+                className={`group relative flex w-full items-center gap-3 px-3 py-3 text-left transition-shadow ${
+                  selectedContactId === contact.id
+                    ? 'bg-muted border border-border shadow-sm' 
+                    : 'bg-background border border-border/50 hover:shadow-sm'
+                } rounded-lg`}
+              >
+                <span className={`absolute left-0 top-1/2 -translate-y-1/2 h-10 w-1 rounded-r ${selectedContactId === contact.id ? 'bg-primary' : 'bg-transparent'}`} />
+                <div className="pl-3" />
+                <Avatar className={`h-14 w-14 shrink-0 ring-1 shadow-sm ${avatarTone(contact.id)}`}>
+                  <AvatarFallback className="bg-transparent">{contact.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-semibold text-foreground">{contact.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">{contact.preview}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 pl-2 text-xs text-muted-foreground">
+                      <span>{contact.time}</span>
+                      {contact.unread > 0 && (
+                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                          {contact.unread}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          )}
         </div>
       </ScrollArea>
     </div>
@@ -398,12 +403,12 @@ export default function Messages() {
             <LayoutDashboard className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <Avatar className={`h-11 w-11 border shadow-sm ${avatarTone(selectedContact.id)}`}>
-              <AvatarFallback className="bg-transparent">{selectedContact.name.charAt(0)}</AvatarFallback>
+            <Avatar className={`h-11 w-11 border shadow-sm ${selectedContact ? avatarTone(selectedContact.id) : 'bg-muted'}`}>
+              <AvatarFallback className="bg-transparent">{selectedContact ? selectedContact.name.charAt(0) : '?'}</AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-lg font-semibold leading-none">{selectedContact.name}</h2>
-              <p className="text-xs text-muted-foreground">{selectedContact.role}</p>
+              <h2 className="text-lg font-semibold leading-none">{selectedContact ? selectedContact.name : 'Select a contact'}</h2>
+              <p className="text-xs text-muted-foreground">{selectedContact ? selectedContact.role : 'No conversation'}</p>
             </div>
           </div>
         </div>
@@ -422,49 +427,57 @@ export default function Messages() {
 
       <ScrollArea className="flex-1 min-h-0 px-4 py-4 sm:px-5">
         <div className="space-y-4 pb-4">
-          <div className="mx-auto w-fit rounded-2xl border bg-muted px-4 py-2 text-sm text-foreground shadow-sm">
-            Friends, Romans, countrymen, lend me your ears; I come to bury Caesar, not to praise him.
-          </div>
-
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm shadow-sm ${
-                  message.sender === 'me' ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md border bg-background text-foreground'
-                }`}
-              >
-                {message.attachment ? (
-                  <div className="space-y-2">
-                    {message.attachment.type === 'image' && (
-                      <img src={message.attachment.url} alt={message.attachment.name} className="max-h-72 w-auto rounded-md" />
-                    )}
-                    {message.attachment.type === 'file' && (
-                      <a href={message.attachment.url} download={message.attachment.name} className="text-sm text-primary underline">
-                        {message.attachment.name || 'Download file'}
-                      </a>
-                    )}
-                    {message.attachment.type === 'audio' && (
-                      <audio controls src={message.attachment.url} className="w-full" />
-                    )}
-                    {message.attachment.type === 'video' && (
-                      <video controls src={message.attachment.url} className="max-h-72 w-auto rounded-md" />
-                    )}
-                    {message.text && <p>{message.text}</p>}
-                  </div>
-                ) : (
-                  <p>{message.text}</p>
-                )}
-                <p className={`mt-1 text-[11px] ${message.sender === 'me' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{message.time}</p>
+          {messages.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {selectedContact ? `No messages with ${selectedContact.name} yet` : 'Select a conversation to start messaging'}
+            </div>
+          ) : (
+            <>
+              <div className="mx-auto w-fit rounded-2xl border bg-muted px-4 py-2 text-sm text-foreground shadow-sm">
+                Friends, Romans, countrymen, lend me your ears; I come to bury Caesar, not to praise him.
               </div>
-            </div>
-          ))}
 
-          <div className="flex justify-end">
-            <div className="rounded-3xl rounded-br-md border bg-background px-4 py-3 text-sm text-foreground shadow-sm">
-              <span className="mr-1">🙂</span>
-              <span>🙂</span>
-            </div>
-          </div>
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm shadow-sm ${
+                      message.sender === 'me' ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md border bg-background text-foreground'
+                    }`}
+                  >
+                    {message.attachment ? (
+                      <div className="space-y-2">
+                        {message.attachment.type === 'image' && (
+                          <img src={message.attachment.url} alt={message.attachment.name} className="max-h-72 w-auto rounded-md" />
+                        )}
+                        {message.attachment.type === 'file' && (
+                          <a href={message.attachment.url} download={message.attachment.name} className="text-sm text-primary underline">
+                            {message.attachment.name || 'Download file'}
+                          </a>
+                        )}
+                        {message.attachment.type === 'audio' && (
+                          <audio controls src={message.attachment.url} className="w-full" />
+                        )}
+                        {message.attachment.type === 'video' && (
+                          <video controls src={message.attachment.url} className="max-h-72 w-auto rounded-md" />
+                        )}
+                        {message.text && <p>{message.text}</p>}
+                      </div>
+                    ) : (
+                      <p>{message.text}</p>
+                    )}
+                    <p className={`mt-1 text-[11px] ${message.sender === 'me' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{message.time}</p>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex justify-end">
+                <div className="rounded-3xl rounded-br-md border bg-background px-4 py-3 text-sm text-foreground shadow-sm">
+                  <span className="mr-1">🙂</span>
+                  <span>🙂</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </ScrollArea>
 
@@ -517,7 +530,7 @@ export default function Messages() {
           <Textarea
             value={draftMessage}
             onChange={(event) => setDraftMessage(event.target.value)}
-            placeholder={`Message ${selectedContact.name}`}
+            placeholder={`Message ${selectedContact ? selectedContact.name : '...'}`}
             rows={1}
             className="min-h-10 flex-1 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0"
             onKeyDown={(event) => {

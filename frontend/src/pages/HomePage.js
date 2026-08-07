@@ -2,6 +2,7 @@ import React from 'react';
 import HeroSlider from '../components/Hero/HeroSlider';
 import DailyQuote from '../components/Quotes/DailyQuote';
 import AdBanner from '../components/Shared/AdBanner';
+// import DevotionalLanding from '../components/Devotional/DevotionalLanding';
 import AboutSDA from '../components/About/AboutSDAPage';
 import AboutKebena from '../components/About/AboutKebenaPage';
 import BookSection from '../components/Books/BookSection';
@@ -19,6 +20,9 @@ const HomePage = () => {
 
       {/* Daily Quote Section */}
       <DailyQuote />
+
+      {/* Devotional Section
+      <DevotionalLanding /> */}
 
       {/* Advertisement/Announcements Section */}
       <AdBanner />

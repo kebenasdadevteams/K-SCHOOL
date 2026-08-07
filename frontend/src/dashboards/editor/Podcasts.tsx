@@ -14,7 +14,9 @@ export default function Podcasts() {
   const location = useLocation();
   const [playing, setPlaying] = useState<number | null>(null);
   const [podcasts, setPodcasts] = useState<any[]>([]);
+  const [episodes, setEpisodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [episodesLoading, setEpisodesLoading] = useState(true);
 
   const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
   const [role] = useState(locationState?.role || 'admin');
@@ -34,6 +36,23 @@ export default function Podcasts() {
     };
 
     loadPodcasts();
+  }, []);
+
+  useEffect(() => {
+    const loadEpisodes = async () => {
+      try {
+        setEpisodesLoading(true);
+        const { data } = await api.get('/content/episodes');
+        setEpisodes(data.data || []);
+      } catch (error) {
+        console.error('Unable to load episodes from database', error);
+        setEpisodes([]);
+      } finally {
+        setEpisodesLoading(false);
+      }
+    };
+
+    loadEpisodes();
   }, []);
 
   const stats = useMemo(() => {
@@ -161,87 +180,94 @@ export default function Podcasts() {
       </div>
 
       <div>
-
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Recent Episodes</h2>
           <Button variant="outline">View All</Button>
         </div>
 
-        <div className="space-y-3">
-          {episodes.map((episode) => (
-            <Card key={episode.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  <div className="relative">
-                    <img 
-                      src={episode.podcast_thumbnail} 
-                      alt={episode.title}
-                      className="w-24 h-24 object-cover rounded-lg"
-                    />
-                    <button
-                      className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg opacity-0 hover:opacity-100 transition-opacity"
-                      onClick={() => setPlaying(playing === episode.id ? null : episode.id)}
-                    >
-                      {playing === episode.id ? (
-                        <Pause className="h-8 w-8 text-white" />
-                      ) : (
-                        <PlayCircle className="h-8 w-8 text-white" />
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <Badge variant="outline" className="mb-2">
-                          {episode.podcast_title}
-                        </Badge>
-                        <h4 className="font-bold text-lg mb-1">{episode.title}</h4>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {episode.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(episode.published_at).toLocaleDateString()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {formatDuration(episode.duration)}
-                      </span>
-                      <span>Episode #{episode.episode_number}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-3">
-                      <Button 
-                        size="sm"
+        {episodesLoading ? (
+          <div className="rounded-lg border p-6 text-sm text-muted-foreground">Loading episodes...</div>
+        ) : episodes.length === 0 ? (
+          <div className="rounded-lg border p-6 text-sm text-muted-foreground">No episodes available yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {episodes.map((episode) => (
+              <Card key={episode.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex gap-4">
+                    <div className="relative">
+                      <img 
+                        src={episode.podcast_thumbnail || episode.thumbnail || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc678?w=400&h=300&fit=crop'} 
+                        alt={episode.title}
+                        className="w-24 h-24 object-cover rounded-lg"
+                      />
+                      <button
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg opacity-0 hover:opacity-100 transition-opacity"
                         onClick={() => setPlaying(playing === episode.id ? null : episode.id)}
                       >
                         {playing === episode.id ? (
-                          <>
-                            <Pause className="h-4 w-4 mr-2" />
-                            Pause
-                          </>
+                          <Pause className="h-8 w-8 text-white" />
                         ) : (
-                          <>
-                            <PlayCircle className="h-4 w-4 mr-2" />
-                            Play
-                          </>
+                          <PlayCircle className="h-8 w-8 text-white" />
                         )}
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        Download
-                      </Button>
+                      </button>
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <Badge variant="outline" className="mb-2">
+                            {episode.podcast_title || 'Untitled Series'}
+                          </Badge>
+                          <h4 className="font-bold text-lg mb-1">{episode.title}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {episode.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(episode.published_at || episode.created_at || Date.now()).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {formatDuration(episode.duration)}
+                        </span>
+                        {episode.episode_number && (
+                          <span>Episode #{episode.episode_number}</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3">
+                        <Button 
+                          size="sm"
+                          onClick={() => setPlaying(playing === episode.id ? null : episode.id)}
+                        >
+                          {playing === episode.id ? (
+                            <>
+                              <Pause className="h-4 w-4 mr-2" />
+                              Pause
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="h-4 w-4 mr-2" />
+                              Play
+                            </>
+                          )}
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          Download
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

@@ -1,3 +1,4 @@
+// src/dashboards/admin/AdminDashboard.tsx
 import React from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { SidebarLayout } from '../components/SidebarLayout';

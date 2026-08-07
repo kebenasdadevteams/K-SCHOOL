@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { BookOpen, Clock, MessageSquare, Users, CheckCircle2, Edit3, ArrowRight, Plus, FileText, Upload } from 'lucide-react';
-
+ 
 type Chapter = {
   id: number;
   title: string;

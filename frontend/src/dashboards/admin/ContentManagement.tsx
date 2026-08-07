@@ -1,3 +1,4 @@
+// src/dashboards/admin/ContentManagement.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button } from '../../components/ui/button';
@@ -7,12 +8,37 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '../../components/ui/textarea';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { ArrowLeft, FileText, Mic, Edit, Trash2, Eye, CheckCircle2, XCircle, Send, Loader2, Plus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { 
+  FileText, 
+  Mic, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  CheckCircle2, 
+  Loader2, 
+  Plus,
+  Search,
+  User,
+  Calendar,
+  Tag,
+  Sparkles,
+  LayoutGrid,
+  List,
+  RefreshCw,
+  Clock,
+  AlertCircle,
+  Archive,
+  BookOpen,
+  MessageSquare,
+  XCircle,
+  ExternalLink
+} from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
 type ContentType = 'post' | 'podcast' | 'course';
-type ContentStatus = 'draft' | 'published' | 'archived';
+type ContentStatus = 'draft' | 'submitted' | 'published' | 'archived';
 
 type ContentItem = {
   id: number;
@@ -22,22 +48,50 @@ type ContentItem = {
   author_name: string;
   body: string;
   category: string;
-  created_at?: string;
+  created_at: string;
   updated_at?: string;
   audio_url?: string;
+  image_url?: string;
+  feedback?: string;
+  published_at?: string;
 };
 
 const iconForType = (type: ContentType) => {
-  if (type === 'podcast') return <Mic className="h-4 w-4 text-primary" />;
-  if (type === 'course') return <FileText className="h-4 w-4 text-primary" />;
-  return <FileText className="h-4 w-4 text-primary" />;
+  if (type === 'podcast') return <Mic className="h-5 w-5 text-purple-500" />;
+  if (type === 'course') return <BookOpen className="h-5 w-5 text-blue-500" />;
+  return <FileText className="h-5 w-5 text-green-500" />;
+};
+
+const statusConfig: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
+  draft: { 
+    label: 'Draft', 
+    color: 'bg-yellow-500/20 text-yellow-700 border-yellow-300', 
+    icon: AlertCircle 
+  },
+  submitted: { 
+    label: 'Under Review', 
+    color: 'bg-blue-500/20 text-blue-700 border-blue-300', 
+    icon: Clock 
+  },
+  published: { 
+    label: 'Published', 
+    color: 'bg-emerald-500/20 text-emerald-700 border-emerald-300', 
+    icon: CheckCircle2 
+  },
+  archived: { 
+    label: 'Archived', 
+    color: 'bg-gray-500/20 text-gray-700 border-gray-300', 
+    icon: Archive 
+  }
 };
 
 export default function ContentManagement() {
   const location = useLocation();
-  const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: 'student' | 'teacher' | 'pastor' | 'editor' | 'admin' } | null;
+  const locationState = location.state as { role?: string; userName?: string; userEmail?: string; view?: string } | null;
   const [role] = useState(locationState?.role || 'admin');
-  const [filter, setFilter] = useState<'all' | 'post' | 'podcast' | 'course'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'post' | 'podcast' | 'course'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | ContentStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [allContent, setAllContent] = useState<ContentItem[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ContentItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
@@ -46,8 +100,10 @@ export default function ContentManagement() {
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'preview' | 'edit'>('preview');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeTab, setActiveTab] = useState<'all' | 'review'>('all');
 
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'developer';
 
   const loadData = async () => {
     try {
@@ -60,8 +116,8 @@ export default function ContentManagement() {
       setAllContent((allResponse.data?.data || []) as ContentItem[]);
       setReviewQueue((queueResponse.data?.data || []) as ContentItem[]);
     } catch (error) {
-      console.error('Unable to load content queue', error);
-      toast.error('Failed to load content review queue');
+      console.error('Unable to load content', error);
+      toast.error('Failed to load content');
     } finally {
       setLoading(false);
     }
@@ -72,15 +128,35 @@ export default function ContentManagement() {
   }, []);
 
   const filteredContent = useMemo(() => {
-    return allContent.filter((item) => filter === 'all' || item.type === filter);
-  }, [allContent, filter]);
+    let result = allContent;
+    
+    if (filterType !== 'all') {
+      result = result.filter(item => item.type === filterType);
+    }
+    
+    if (filterStatus !== 'all') {
+      result = result.filter(item => item.status === filterStatus);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        item.author_name.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query)
+      );
+    }
+    
+    return result;
+  }, [allContent, filterType, filterStatus, searchQuery]);
 
   const stats = useMemo(() => {
     const total = allContent.length;
-    const published = allContent.filter((item) => item.status === 'published').length;
-    const drafts = allContent.filter((item) => item.status === 'draft').length;
-    return { total, published, drafts };
-  }, [allContent]);
+    const published = allContent.filter(item => item.status === 'published').length;
+    const drafts = allContent.filter(item => item.status === 'draft' || item.status === 'submitted').length;
+    const archived = allContent.filter(item => item.status === 'archived').length;
+    return { total, published, drafts, archived, review: reviewQueue.length };
+  }, [allContent, reviewQueue]);
 
   const openReviewDialog = (item: ContentItem, mode: 'preview' | 'edit' = 'preview') => {
     setSelectedItem(item);
@@ -102,7 +178,7 @@ export default function ContentManagement() {
         audio_url: item.audio_url,
       });
 
-      toast.success(`${item.title} was verified and published`);
+      toast.success(`✅ "${item.title}" published successfully`);
       await loadData();
       setDialogOpen(false);
     } catch (error) {
@@ -115,7 +191,7 @@ export default function ContentManagement() {
 
   const handleReject = async () => {
     if (!selectedItem || !feedbackText.trim()) {
-      toast.error('Please provide feedback before sending it back to the submitter.');
+      toast.error('Please provide feedback before rejecting.');
       return;
     }
 
@@ -130,7 +206,7 @@ export default function ContentManagement() {
         audio_url: selectedItem.audio_url,
       });
 
-      toast.success('Feedback sent successfully');
+      toast.success('📝 Feedback sent successfully');
       await loadData();
       setDialogOpen(false);
     } catch (error) {
@@ -142,11 +218,11 @@ export default function ContentManagement() {
   };
 
   const handleDelete = async (item: ContentItem) => {
-    if (!window.confirm(`Delete ${item.title}?`)) return;
+    if (!window.confirm(`⚠️ Delete "${item.title}"? This action cannot be undone.`)) return;
 
     try {
       await api.delete(`/content/type/${item.type}/${item.id}`);
-      toast.success('Content deleted');
+      toast.success('🗑️ Content deleted');
       await loadData();
     } catch (error) {
       console.error('Unable to delete content', error);
@@ -167,7 +243,7 @@ export default function ContentManagement() {
         audio_url: selectedItem.audio_url,
       });
 
-      toast.success('Draft changes saved');
+      toast.success('💾 Changes saved successfully');
       await loadData();
       setDialogOpen(false);
     } catch (error) {
@@ -178,225 +254,553 @@ export default function ContentManagement() {
     }
   };
 
-  return (
-    <>
-      {isAdmin && (
-        <Card className="mb-6 border-primary/20 bg-gradient-to-r from-primary/10 via-background to-primary/5">
-          <CardHeader>
-            <CardTitle>Admin Verification Queue</CardTitle>
-            <CardDescription>
-              Review submitted drafts, preview the item, publish it, or send a correction note back to the creator.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {loading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading draft queue...
-              </div>
-            ) : reviewQueue.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No items waiting for verification.</p>
-            ) : (
-              reviewQueue.map((item) => (
-                <div key={`${item.type}-${item.id}`} className="flex flex-col gap-3 rounded-lg border bg-background p-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.author_name} • {new Date(item.created_at || Date.now()).toLocaleDateString()} • {item.type}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => openReviewDialog(item, 'preview')}>
-                      Open Draft
-                    </Button>
-                    <Button onClick={() => handlePublish(item)} disabled={saving}>
-                      Verify & Publish
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
+  // Safe getStatusBadge with fallback
+  const getStatusBadge = (status: string) => {
+    const config = statusConfig[status] || statusConfig.draft;
+    const Icon = config.icon;
+    return (
+      <Badge className={`${config.color} border font-medium`}>
+        <Icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
+  };
 
-      <div className="mb-6 flex gap-4 flex-wrap items-center justify-between">
-        <div className="flex gap-2">
-          <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>All Content</Button>
-          <Button variant={filter === 'post' ? 'default' : 'outline'} onClick={() => setFilter('post')}>
-            <FileText className="h-4 w-4 mr-2" />
-            Posts
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  return (
+    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+            <Sparkles className="h-8 w-8 text-amber-500" />
+            Content Management
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage, review, and publish content across your platform
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadData}
+            className="border-slate-200 hover:bg-slate-100"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
-          <Button variant={filter === 'podcast' ? 'default' : 'outline'} onClick={() => setFilter('podcast')}>
-            <Mic className="h-4 w-4 mr-2" />
-            Podcasts
-          </Button>
-          <Button variant={filter === 'course' ? 'default' : 'outline'} onClick={() => setFilter('course')}>
-            <FileText className="h-4 w-4 mr-2" />
-            Courses
+          <Button 
+            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/30"
+            onClick={() => {
+              toast.info('Content creation coming soon!');
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Content
           </Button>
         </div>
-
-        <Button onClick={() => setDialogOpen(true)} disabled={reviewQueue.length === 0}>
-          <Plus className="h-4 w-4 mr-2" />
-          Review Content
-        </Button>
       </div>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Content</CardDescription>
-              <CardTitle className="text-3xl">{stats.total}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Published</CardDescription>
-              <CardTitle className="text-3xl text-green-600">{stats.published}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Drafts</CardDescription>
-              <CardTitle className="text-3xl text-orange-600">{stats.drafts}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Queue</CardDescription>
-              <CardTitle className="text-3xl">{reviewQueue.length}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs text-slate-500">Total</CardDescription>
+            <CardTitle className="text-2xl text-slate-800">{stats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs text-emerald-600">Published</CardDescription>
+            <CardTitle className="text-2xl text-emerald-700">{stats.published}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-yellow-200 bg-yellow-50/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs text-yellow-600">Drafts</CardDescription>
+            <CardTitle className="text-2xl text-yellow-700">{stats.drafts}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs text-blue-600">Review Queue</CardDescription>
+            <CardTitle className="text-2xl text-blue-700">{stats.review}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-gray-200 bg-gray-50/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs text-gray-600">Archived</CardDescription>
+            <CardTitle className="text-2xl text-gray-700">{stats.archived}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
 
-        <div className="space-y-4">
-          {filteredContent.map((item) => (
-            <Card key={`${item.type}-${item.id}`} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {iconForType(item.type)}
-                      <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>{item.status}</Badge>
-                    </div>
-                    <CardTitle className="mb-2">{item.title}</CardTitle>
-                    <CardDescription>
-                      By {item.author_name} • {new Date(item.created_at || Date.now()).toLocaleDateString()} • {item.type}
-                    </CardDescription>
-                    <div className="flex gap-2 mt-3 flex-wrap">
-                      <Badge variant="outline">{item.category}</Badge>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant="ghost" size="sm" onClick={() => openReviewDialog(item, 'preview')}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && item.status === 'draft' && (
-                      <Button variant="ghost" size="sm" onClick={() => handlePublish(item)}>
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => openReviewDialog(item, 'edit')}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
+      {/* Tabs */}
+      <Tabs defaultValue="all" className="w-full" onValueChange={(v) => setActiveTab(v as 'all' | 'review')}>
+        <TabsList className="bg-slate-100/80 p-1">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            All Content
+          </TabsTrigger>
+          <TabsTrigger value="review" className="data-[state=active]:bg-white data-[state=active]:shadow-sm relative">
+            Review Queue
+            {reviewQueue.length > 0 && (
+              <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5">
+                {reviewQueue.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="space-y-4 mt-4">
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search content..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 border-slate-200 focus-visible:ring-amber-500/30 bg-white"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <select
+                className="px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-amber-500/30 focus:outline-none bg-white"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+              >
+                <option value="all">All Types</option>
+                <option value="post">Posts</option>
+                <option value="podcast">Podcasts</option>
+                <option value="course">Courses</option>
+              </select>
+              <select
+                className="px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-amber-500/30 focus:outline-none bg-white"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+              >
+                <option value="all">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Under Review</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+              <div className="flex bg-white border border-slate-200 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={viewMode === 'grid' ? 'bg-amber-500 text-white' : ''}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={viewMode === 'list' ? 'bg-amber-500 text-white' : ''}
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Grid/List */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            </div>
+          ) : filteredContent.length === 0 ? (
+            <Card className="border-dashed border-2 border-slate-200">
+              <CardContent className="text-center py-12">
+                <FileText className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-slate-600 mb-2">No content found</h3>
+                <p className="text-sm text-slate-400">Try adjusting your filters or create new content</p>
+              </CardContent>
             </Card>
-          ))}
-        </div>
-      </main>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredContent.map((item) => (
+                <Card key={`${item.type}-${item.id}`} className="hover:shadow-lg transition-shadow border-slate-200 overflow-hidden group">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        {iconForType(item.type)}
+                        <span className="text-xs text-slate-500 uppercase tracking-wider">{item.type}</span>
+                      </div>
+                      {getStatusBadge(item.status)}
+                    </div>
+                    <CardTitle className="text-lg mt-2 line-clamp-2">{item.title}</CardTitle>
+                    <CardDescription className="line-clamp-3 text-sm">{item.body}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <User className="h-3.5 w-3.5" />
+                        <span>{item.author_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>{formatDate(item.created_at)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Badge variant="outline" className="text-xs border-slate-200">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {item.category}
+                      </Badge>
+                      {item.type === 'podcast' && item.audio_url && (
+                        <Badge variant="outline" className="text-xs border-purple-200 text-purple-600">
+                          <Mic className="h-3 w-3 mr-1" />
+                          Audio
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="flex-1 text-slate-600 hover:bg-slate-100"
+                        onClick={() => openReviewDialog(item, 'preview')}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </Button>
+                      {isAdmin && (item.status === 'draft' || item.status === 'submitted') && (
+                        <Button 
+                          size="sm"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+                          onClick={() => handlePublish(item)}
+                          disabled={saving}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Publish
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-red-400 hover:bg-red-50"
+                        onClick={() => handleDelete(item)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredContent.map((item) => (
+                <Card key={`${item.type}-${item.id}`} className="hover:shadow-md transition-shadow border-slate-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center gap-2">
+                          {iconForType(item.type)}
+                          <span className="text-xs text-slate-500 uppercase">{item.type}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-800">{item.title}</p>
+                          <p className="text-xs text-slate-500 flex items-center gap-2">
+                            <span>{item.author_name}</span>
+                            <span>•</span>
+                            <span>{formatDate(item.created_at)}</span>
+                            <span>•</span>
+                            <span>{item.category}</span>
+                          </p>
+                        </div>
+                        {getStatusBadge(item.status)}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-slate-600 hover:bg-slate-100"
+                          onClick={() => openReviewDialog(item, 'preview')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (item.status === 'draft' || item.status === 'submitted') && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-emerald-600 hover:bg-emerald-50"
+                            onClick={() => handlePublish(item)}
+                            disabled={saving}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-red-400 hover:bg-red-50"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
+        <TabsContent value="review" className="space-y-4 mt-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            </div>
+          ) : reviewQueue.length === 0 ? (
+            <Card className="border-dashed border-2 border-green-200 bg-green-50/30">
+              <CardContent className="text-center py-12">
+                <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-green-600 mb-2">All caught up!</h3>
+                <p className="text-sm text-green-500">No content waiting for review</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {reviewQueue.map((item) => (
+                <Card key={`${item.type}-${item.id}`} className="border-amber-200 bg-amber-50/30 hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {iconForType(item.type)}
+                          <Badge className="bg-amber-500 text-white">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending Review
+                          </Badge>
+                          <span className="text-xs text-slate-500 uppercase">{item.type}</span>
+                        </div>
+                        <p className="font-semibold text-slate-800">{item.title}</p>
+                        <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <User className="h-3.5 w-3.5" />
+                            {item.author_name}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {formatDate(item.created_at)}
+                          </span>
+                          <Badge variant="outline" className="text-xs border-slate-200">
+                            {item.category}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline"
+                          className="border-amber-200 hover:bg-amber-100/50"
+                          onClick={() => openReviewDialog(item, 'preview')}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review
+                        </Button>
+                        <Button 
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                          onClick={() => handlePublish(item)}
+                          disabled={saving}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Publish
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Review Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl rounded-3xl border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white shadow-[0_30px_90px_rgba(15,23,42,0.85)]">
-          <DialogHeader className="border-b border-white/10 pb-4">
-            <DialogTitle className="text-2xl font-bold text-white">{modalMode === 'edit' ? 'Edit Draft' : 'Review Content'}</DialogTitle>
-            <DialogDescription className="text-slate-300">
-              {modalMode === 'edit'
-                ? 'Update the draft and save it back to the database before resubmitting.'
-                : 'Preview the submitted content, verify and publish it, or send a correction note.'}
-            </DialogDescription>
+        <DialogContent className="max-w-5xl rounded-3xl border-0 bg-white shadow-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader className="border-b border-slate-200 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                  {modalMode === 'edit' ? <Edit className="h-6 w-6 text-amber-500" /> : <Eye className="h-6 w-6 text-amber-500" />}
+                  {modalMode === 'edit' ? 'Edit Draft' : 'Review Content'}
+                </DialogTitle>
+                <DialogDescription className="text-slate-500">
+                  {modalMode === 'edit'
+                    ? 'Update the draft and save it back before resubmitting.'
+                    : 'Preview the content, verify it, or send feedback to the creator.'}
+                </DialogDescription>
+              </div>
+              {selectedItem && getStatusBadge(selectedItem.status)}
+            </div>
           </DialogHeader>
 
           {selectedItem ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-300 mb-3">
-                    {iconForType(selectedItem.type)}
-                    <span className="uppercase tracking-wide">{selectedItem.type}</span>
-                  </div>
-                  <Label className="text-slate-200">Title</Label>
-                  <Input
-                    value={selectedItem.title}
-                    onChange={(event) => setSelectedItem({ ...selectedItem, title: event.target.value })}
-                    className="mt-2 border-white/10 bg-white/5 text-white"
-                  />
-
-                  <div className="mt-4">
-                    <Label className="text-slate-200">Category</Label>
-                    <Input
-                      value={selectedItem.category}
-                      onChange={(event) => setSelectedItem({ ...selectedItem, category: event.target.value })}
-                      className="mt-2 border-white/10 bg-white/5 text-white"
-                    />
-                  </div>
-
-                  {selectedItem.type === 'podcast' && (
-                    <div className="mt-4">
-                      <Label className="text-slate-200">Audio URL</Label>
-                      <Input
-                        value={selectedItem.audio_url || ''}
-                        onChange={(event) => setSelectedItem({ ...selectedItem, audio_url: event.target.value })}
-                        className="mt-2 border-white/10 bg-white/5 text-white"
-                      />
+            <div className="flex-1 overflow-y-auto p-1">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left Column - Content Preview */}
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+                    <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                      {iconForType(selectedItem.type)}
+                      <span className="uppercase tracking-wider font-medium">{selectedItem.type}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-400">{selectedItem.category}</span>
                     </div>
-                  )}
+
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-semibold text-slate-700">Title</Label>
+                        <Input
+                          value={selectedItem.title}
+                          onChange={(e) => setSelectedItem({ ...selectedItem, title: e.target.value })}
+                          className="mt-1 border-slate-200 focus-visible:ring-amber-500/30 bg-white"
+                        />
+                      </div>
+
+                      {selectedItem.type === 'podcast' && (
+                        <div>
+                          <Label className="text-sm font-semibold text-slate-700">Audio URL</Label>
+                          <Input
+                            value={selectedItem.audio_url || ''}
+                            onChange={(e) => setSelectedItem({ ...selectedItem, audio_url: e.target.value })}
+                            className="mt-1 border-slate-200 focus-visible:ring-amber-500/30 bg-white"
+                            placeholder="https://example.com/audio.mp3"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label className="text-sm font-semibold text-slate-700">Content</Label>
+                        <Textarea
+                          value={selectedItem.body}
+                          onChange={(e) => setSelectedItem({ ...selectedItem, body: e.target.value })}
+                          rows={12}
+                          className="mt-1 border-slate-200 focus-visible:ring-amber-500/30 bg-white font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <Label className="text-slate-200">Content Preview</Label>
-                  <Textarea
-                    value={selectedItem.body}
-                    onChange={(event) => setSelectedItem({ ...selectedItem, body: event.target.value })}
-                    rows={14}
-                    className="mt-2 border-white/10 bg-white/5 text-white"
-                  />
+                {/* Right Column - Admin Actions */}
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+                    <div className="flex items-center gap-2 text-amber-700 mb-3">
+                      <MessageSquare className="h-5 w-5" />
+                      <span className="font-semibold">Admin Feedback</span>
+                    </div>
+                    <Textarea
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      rows={8}
+                      className="border-amber-200 focus-visible:ring-amber-500/30 bg-white"
+                      placeholder="Provide feedback, corrections, or suggestions for improvement..."
+                    />
+                    <p className="text-xs text-amber-600/70 mt-2">
+                      {feedbackText.length} characters • This will be sent to the content creator
+                    </p>
+                  </div>
+
+                  {/* Content Info */}
+                  <Card className="border-slate-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold text-slate-700">Content Info</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Author</span>
+                        <span className="font-medium text-slate-700">{selectedItem.author_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Created</span>
+                        <span className="font-medium text-slate-700">
+                          {formatDate(selectedItem.created_at)}
+                        </span>
+                      </div>
+                      {selectedItem.updated_at && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Last Updated</span>
+                          <span className="font-medium text-slate-700">
+                            {formatDate(selectedItem.updated_at)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Type</span>
+                        <span className="font-medium text-slate-700 capitalize">{selectedItem.type}</span>
+                      </div>
+                      {selectedItem.audio_url && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Audio</span>
+                          <a 
+                            href={selectedItem.audio_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline flex items-center gap-1"
+                          >
+                            Listen <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
-                <Label className="text-amber-100">Admin Feedback</Label>
-                <Textarea
-                  value={feedbackText}
-                  onChange={(event) => setFeedbackText(event.target.value)}
-                  rows={4}
-                  className="mt-2 border-amber-300/20 bg-slate-950/30 text-white"
-                  placeholder="Leave notes, corrections, or a required fix for the content creator."
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 justify-end">
-                <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setDialogOpen(false)}>
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 justify-end mt-4 pt-4 border-t border-slate-200">
+                <Button 
+                  variant="outline" 
+                  className="border-slate-200 hover:bg-slate-100"
+                  onClick={() => setDialogOpen(false)}
+                >
                   Close
                 </Button>
+                
                 {modalMode === 'edit' ? (
-                  <Button onClick={handleSaveEdits} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Draft'}
+                  <Button 
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                    onClick={handleSaveEdits}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Edit className="h-4 w-4 mr-2" />}
+                    Save Changes
                   </Button>
                 ) : (
                   <>
-                    <Button variant="secondary" onClick={handleReject} disabled={saving}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Feedback
+                    <Button 
+                      variant="destructive"
+                      onClick={handleReject}
+                      disabled={saving || !feedbackText.trim()}
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+                      Reject & Send Feedback
                     </Button>
-                    <Button onClick={() => handlePublish(selectedItem)} disabled={saving}>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <Button 
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                      onClick={() => handlePublish(selectedItem)}
+                      disabled={saving}
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                       Verify & Publish
                     </Button>
                   </>
@@ -404,10 +808,10 @@ export default function ContentManagement() {
               </div>
             </div>
           ) : (
-            <p className="text-slate-300">Select a draft to review.</p>
+            <p className="text-slate-500 text-center py-8">Select a draft to review.</p>
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

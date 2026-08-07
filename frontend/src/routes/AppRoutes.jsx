@@ -10,6 +10,7 @@ import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import RoleSelectionPage from '../pages/auth/RoleSelectionPage';
+import DevotionalPage from '../pages/DevotionalPage';
 
 // Dashboards
 import StudentDashboard from '../dashboards/student/StudentDashboard';
@@ -70,6 +71,9 @@ const AppRoutes = () => {
           <AdminDashboard />
         </ProtectedRoute>
       } />
+
+      {/* Devotional detail page */}
+      <Route path="/devotionals/:slug" element={<DevotionalPage />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

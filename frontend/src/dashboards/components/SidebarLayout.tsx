@@ -163,13 +163,16 @@ export function SidebarLayout({
       try {
         const shouldLoadContent = ['admin', 'editor', 'teacher', 'pastor', 'developer'].includes(activeView);
         const shouldLoadUsers = activeView === 'admin';
+        const shouldLoadPastorMembers = activeView === 'pastor';
         const shouldLoadStudentActivity = activeView === 'student';
-        const shouldLoadTeacherCourses = activeView === 'teacher';
+        const shouldLoadCourses = ['admin', 'teacher'].includes(activeView);
+        const isAuthenticated = Boolean(localStorage.getItem('kschool_token'));
 
-        const requests = [
-          api.get('/activity/messages'),
-          api.get('/activity/notifications'),
-        ];
+        const requests = [];
+        if (isAuthenticated) {
+          requests.push(api.get('/activity/messages'));
+          requests.push(api.get('/activity/notifications'));
+        }
 
         if (shouldLoadContent) {
           requests.push(api.get('/content/all'));
@@ -180,23 +183,30 @@ export function SidebarLayout({
           requests.push(api.get('/users'));
         }
 
+        if (shouldLoadPastorMembers) {
+          requests.push(api.get('/pastor/members'));
+        }
+
         if (shouldLoadStudentActivity) {
           requests.push(api.get('/activity/enrollments'));
           requests.push(api.get('/activity/assignments'));
         }
 
-        if (shouldLoadTeacherCourses) {
+        if (shouldLoadCourses) {
           requests.push(api.get('/courses'));
         }
 
         const results = await Promise.allSettled(requests);
         let index = 0;
 
-        const messagesResult = results[index++];
-        const notificationsResult = results[index++];
-
-        const messages = messagesResult.status === 'fulfilled' ? messagesResult.value.data?.data || [] : [];
-        const notifications = notificationsResult.status === 'fulfilled' ? notificationsResult.value.data?.data || [] : [];
+        let messages: any[] = [];
+        let notifications: any[] = [];
+        if (isAuthenticated) {
+          const messagesResult = results[index++];
+          const notificationsResult = results[index++];
+          messages = messagesResult?.status === 'fulfilled' ? messagesResult.value.data?.data || [] : [];
+          notifications = notificationsResult?.status === 'fulfilled' ? notificationsResult.value.data?.data || [] : [];
+        }
 
         const counts: Record<string, number> = {
           content: sidebarCounts.content,
@@ -211,13 +221,18 @@ export function SidebarLayout({
         if (shouldLoadContent) {
           const contentResult = results[index++];
           const podcastsResult = results[index++];
-          counts.content = contentResult.status === 'fulfilled' ? contentResult.value.data?.data?.length || 0 : 0;
-          counts.podcasts = podcastsResult.status === 'fulfilled' ? podcastsResult.value.data?.data?.length || 0 : 0;
+          counts.content = contentResult?.status === 'fulfilled' ? contentResult.value.data?.data?.length || 0 : 0;
+          counts.podcasts = podcastsResult?.status === 'fulfilled' ? podcastsResult.value.data?.data?.length || 0 : 0;
         }
 
         if (shouldLoadUsers) {
           const usersResult = results[index++];
           counts.users = usersResult.status === 'fulfilled' ? usersResult.value.data?.data?.length || 0 : 0;
+        }
+
+        if (shouldLoadPastorMembers) {
+          const membersResult = results[index++];
+          counts.users = membersResult.status === 'fulfilled' ? membersResult.value.data?.data?.length || 0 : 0;
         }
 
         if (shouldLoadStudentActivity) {
@@ -229,9 +244,12 @@ export function SidebarLayout({
           counts.assignments = assignments.filter((item: any) => item.status !== 'graded').length;
         }
 
-        if (shouldLoadTeacherCourses) {
-          const teacherCoursesResult = results[index++];
-          counts.courses = teacherCoursesResult.status === 'fulfilled' ? teacherCoursesResult.value.data?.data?.length || 0 : 0;
+        if (shouldLoadCourses) {
+          const coursesResult = results[index++];
+          const courseData = coursesResult.status === 'fulfilled' ? coursesResult.value.data?.data || [] : [];
+          counts.courses = activeView === 'admin'
+            ? courseData.filter((course: any) => String(course.status || '').toLowerCase() === 'submitted').length
+            : courseData.length;
         }
 
         setSidebarCounts((prev) => ({ ...prev, ...counts }));
@@ -266,13 +284,14 @@ export function SidebarLayout({
     || userRole === 'admin'
     || userRole === 'developer';
 
-  const roleOptions: Array<{ view: ActiveView; label: string; icon: React.ComponentType<any> }> = [
+  type RoleOption = { view: ActiveView; label: string; icon: React.ComponentType<any> };
+  const roleOptions: RoleOption[] = [
     { view: 'student', label: 'Student View', icon: UserCircle },
-    ...(userRoles.includes('teacher') ? [{ view: 'teacher', label: 'Teacher View', icon: GraduationCap }] : []),
-    ...(userRoles.includes('pastor') ? [{ view: 'pastor', label: 'Pastor View', icon: Church }] : []),
-    ...(userRoles.includes('editor') ? [{ view: 'editor', label: 'Editor View', icon: FileText }] : []),
-    ...(userRoles.includes('admin') ? [{ view: 'admin', label: 'Admin View', icon: Shield }] : []),
-    ...(userRoles.includes('developer') ? [{ view: 'developer', label: 'Developer View', icon: Shield }] : []),
+    ...(userRoles.includes('teacher') ? [{ view: 'teacher', label: 'Teacher View', icon: GraduationCap }] as RoleOption[] : []),
+    ...(userRoles.includes('pastor') ? [{ view: 'pastor', label: 'Pastor View', icon: Church }] as RoleOption[] : []),
+    ...(userRoles.includes('editor') ? [{ view: 'editor', label: 'Editor View', icon: FileText }] as RoleOption[] : []),
+    ...(userRoles.includes('admin') ? [{ view: 'admin', label: 'Admin View', icon: Shield }] as RoleOption[] : []),
+    ...(userRoles.includes('developer') ? [{ view: 'developer', label: 'Developer View', icon: Shield }] as RoleOption[] : []),
   ];
 
   const currentRoleOption = roleOptions.find((option) => option.view === activeView) ?? roleOptions[0];
@@ -288,6 +307,13 @@ export function SidebarLayout({
           icon: LayoutDashboard, 
           path: '/admin',
           description: 'Overview & stats'
+        },
+        { 
+          label: 'Courses',
+          icon: BookOpen,
+          path: '/admin/courses',
+          description: 'Review and approve courses',
+          badge: String(sidebarCounts.courses)
         },
         { 
           label: 'Content', 
@@ -328,7 +354,12 @@ export function SidebarLayout({
           path: '/admin/analytics',
           description: 'Platform insights'
         },
-        // Add Settings to admin menu
+        { 
+          label: 'Notifications', 
+          icon: Bell, 
+          path: '/admin/notifications',
+          description: 'System alerts'
+        },
         { 
           label: 'Settings', 
           icon: Cog, 
@@ -357,7 +388,9 @@ export function SidebarLayout({
         { label: 'Dashboard', icon: LayoutDashboard, path: '/teacher', description: 'Teaching overview' },
         { label: 'Manage Courses', icon: BookOpen, path: '/teacher/courses', badge: String(sidebarCounts.courses), description: 'Your classes' },
         { label: 'Assignments', icon: Calendar, path: '/teacher/assignments', badge: String(sidebarCounts.assignments), description: 'Student submissions' },
+        { label: 'Submissions', icon: FileText, path: '/teacher/submissions', description: 'Review student work' },
         { label: 'Students', icon: UserPlus, path: '/teacher/students', description: 'Class roster' },
+        { label: 'Messages', icon: Mail, path: '/teacher/messages', description: 'Team communications' },
         { label: 'Settings', icon: Cog, path: '/teacher/settings', description: 'Preferences' },
       ];
     }
@@ -367,6 +400,7 @@ export function SidebarLayout({
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/editor', description: 'Content overview' },
         { label: 'Content', icon: FolderOpen, path: '/editor/content', badge: String(sidebarCounts.content), description: 'Write & edit' },
+        { label: 'Devotionals', icon: BookOpen, path: '/editor/devotionals', description: 'Manage landing page devotional' },
         { label: 'Podcasts', icon: Radio, path: '/editor/podcasts', badge: String(sidebarCounts.podcasts), description: 'Audio production' },
         { label: 'Messages', icon: Mail, path: '/editor/messages', description: 'Team communications' },
         { label: 'Notifications', icon: Bell, path: '/editor/notifications', description: 'Updates & alerts' },
@@ -392,10 +426,12 @@ export function SidebarLayout({
       return [
         { label: 'Dashboard', icon: LayoutDashboard, path: '/pastor', description: 'Ministry overview' },
         { label: 'Members', icon: Users, path: '/pastor/users', badge: String(sidebarCounts.users), description: 'Congregation' },
+        { label: 'Attendance', icon: Calendar, path: '/pastor/attendance', description: 'Service attendance' },
         { label: 'Church Management', icon: FolderOpen, path: '/pastor/content', description: 'Ministry resources' },
         { label: 'Podcasts', icon: Radio, path: '/pastor/podcasts', badge: '7', description: 'Sermons & messages' },
-        { label: 'Events', icon: Gift, path: '/pastor/promotions', description: 'Church calendar' },
-        { label: 'Donations', icon: TrendingUp, path: '/pastor/analytics', description: 'Giving insights' },
+        { label: 'Promotions', icon: Gift, path: '/pastor/promotions', description: 'Church calendar' },
+        { label: 'Reports', icon: TrendingUp, path: '/pastor/analytics', description: 'Ministry analytics' },
+        { label: 'Notifications', icon: Bell, path: '/pastor/notifications', description: 'Updates & alerts' },
         { label: 'Settings', icon: Cog, path: '/pastor/settings', description: 'Preferences' },
       ];
     }
