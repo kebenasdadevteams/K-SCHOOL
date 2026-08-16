@@ -611,7 +611,6 @@ export function SettingsContent({ initialView = 'student' }: { initialView?: Vie
   );
 }
 
-// FIXED: Added SidebarLayout wrapper so students see the sidebar
 export default function SettingsPage() {
   const location = useLocation();
   const locationState = location.state as { userName?: string; userEmail?: string; view?: ViewType } | null;
