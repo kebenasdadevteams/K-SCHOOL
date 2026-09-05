@@ -1,0 +1,21 @@
+{
+  "name": "Kebena SDA Church",
+  "short_name": "Kebena SDA",
+  "description": "Kebena Seventh-Day Adventist Church community of faith, hope, and love.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#865014",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/images/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
